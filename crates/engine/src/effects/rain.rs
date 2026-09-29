@@ -117,3 +117,49 @@ impl Effect for Rain {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand_chacha::rand_core::SeedableRng;
+
+    #[test]
+    fn stream_recycles_after_its_trail_leaves_the_grid() {
+        let config = EffectConfig::new(1.0, 1.0, 1.0, "01").unwrap();
+        let mut rain = Rain::new(config, ChaCha8Rng::seed_from_u64(42));
+        rain.resize(GridSize::new(1, 10).unwrap());
+        let stream = &mut rain.streams[0];
+        let previous_salt = stream.salt;
+        stream.head = (10 + stream.length) * 256 - stream.velocity;
+        rain.step();
+        assert_eq!(rain.streams[0].head, 0);
+        assert!(rain.streams[0].active);
+        assert_ne!(rain.streams[0].salt, previous_salt);
+    }
+
+    #[test]
+    fn resize_keeps_surviving_columns_in_motion() {
+        let mut rain = Rain::new(EffectConfig::default(), ChaCha8Rng::seed_from_u64(42));
+        rain.resize(GridSize::new(80, 24).unwrap());
+        let before: Vec<_> = rain.streams[..40]
+            .iter()
+            .map(|s| (s.head, s.salt))
+            .collect();
+        rain.resize(GridSize::new(40, 12).unwrap());
+        assert_eq!(
+            before,
+            rain.streams
+                .iter()
+                .map(|s| (s.head, s.salt))
+                .collect::<Vec<_>>()
+        );
+        rain.resize(GridSize::new(100, 40).unwrap());
+        assert_eq!(
+            before,
+            rain.streams[..40]
+                .iter()
+                .map(|s| (s.head, s.salt))
+                .collect::<Vec<_>>()
+        );
+    }
+}

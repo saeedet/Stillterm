@@ -17,10 +17,13 @@ import time
 def read_available(master, output, timeout=0.05):
     if select.select([master], [], [], timeout)[0]:
         try:
-            output.extend(os.read(master, 65536))
+            chunk = os.read(master, 65536)
+            output.extend(chunk)
+            return bool(chunk)
         except OSError as error:
             if error.errno != errno.EIO:
                 raise
+    return False
 
 
 def set_size(slave, columns, rows):
@@ -73,7 +76,8 @@ def check(binary, mode):
             read_available(master, output)
         assert process.poll() is not None, f"{mode}: exit timed out"
         while select.select([master], [], [], 0)[0]:
-            read_available(master, output, 0)
+            if not read_available(master, output, 0):
+                break
         expected = 1 if mode == "resize-error" else 0
         assert process.returncode == expected, f"{mode}: {process.returncode}: {output!r}"
         assert termios.tcgetattr(slave) == original, f"{mode}: terminal modes changed"
@@ -91,10 +95,48 @@ def check(binary, mode):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("binary", nargs="?", default="target/debug/stillterm")
+    parser.add_argument("--panic-check", action="store_true", help="also run the Rust panic cleanup test in a PTY")
     args = parser.parse_args()
     binary = str(Path(args.binary).resolve())
     for mode in ("q", "escape", "ctrl-c", "SIGINT", "SIGTERM", "SIGHUP", "resize", "resize-error"):
         check(binary, mode)
+    if args.panic_check:
+        check_panic()
+
+
+def check_panic():
+    master, slave = os.openpty()
+    original = termios.tcgetattr(slave)
+    output = bytearray()
+    process = None
+    try:
+        process = subprocess.Popen(
+            ["cargo", "test", "--locked", "-p", "stillterm", "session::tests::panic_restores_terminal", "--", "--ignored", "--nocapture", "--test-threads=1"],
+            stdin=slave, stdout=slave, stderr=slave,
+            env={**os.environ, "TERM": "xterm-256color"}, start_new_session=True,
+        )
+        deadline = time.monotonic() + 60
+        inspected = False
+        while process.poll() is None and time.monotonic() < deadline:
+            read_available(master, output)
+            if not inspected and b"STILLTERM_CLEANUP_READY" in output:
+                assert termios.tcgetattr(slave) == original, "panic changed terminal modes"
+                inspected = True
+                os.write(master, b"\n")
+        assert process.poll() == 0, f"panic test failed or timed out: {output!r}"
+        while select.select([master], [], [], 0)[0]:
+            if not read_available(master, output, 0):
+                break
+        assert inspected, f"panic cleanup handshake missing: {output!r}"
+        for sequence in [b"\x1b[?1049h", b"\x1b[?1049l", b"\x1b[?25h"]:
+            assert sequence in output, f"panic cleanup missing {sequence!r}: {output!r}"
+        print("PASS panic cleanup")
+    finally:
+        if process is not None and process.poll() is None:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+        os.close(master)
+        os.close(slave)
 
 
 if __name__ == "__main__":

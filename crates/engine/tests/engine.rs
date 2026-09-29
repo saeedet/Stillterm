@@ -34,6 +34,41 @@ fn different_seeds_change_the_composition() {
 }
 
 #[test]
+fn reference_frames_preserve_the_seeded_visual_sequence() {
+    // FNV-1a over explicit scalar and intensity bytes, independent of Rust's Hash.
+    fn fingerprint(frame: &Frame) -> u64 {
+        let mut hash = 0xcbf29ce484222325u64;
+        for cell in frame.cells() {
+            for byte in (cell.glyph.as_char() as u32)
+                .to_le_bytes()
+                .into_iter()
+                .chain([cell.intensity])
+            {
+                hash = (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3);
+            }
+        }
+        hash
+    }
+    let mut engine = engine(42);
+    let mut actual = Vec::new();
+    for tick in 0..=900 {
+        if [0, 1, 120, 900].contains(&tick) {
+            actual.push(fingerprint(engine.frame()));
+        }
+        engine.step();
+    }
+    assert_eq!(
+        actual,
+        [
+            1932281938483498771,
+            11784908531410415146,
+            6619540036231623766,
+            11073333601853703345
+        ]
+    );
+}
+
+#[test]
 fn rendering_frequency_does_not_change_simulation() {
     let (mut a, mut b) = (engine(7), engine(7));
     for tick in 0..300 {

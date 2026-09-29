@@ -146,6 +146,33 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_failed_write_forces_a_complete_repaint_on_retry() {
+        struct Broken;
+        impl Write for Broken {
+            fn write(&mut self, _: &[u8]) -> io::Result<usize> {
+                Err(io::ErrorKind::BrokenPipe.into())
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
+        }
+        let mut frame = Frame::new(GridSize::new(3, 1).unwrap());
+        frame.set(
+            0,
+            0,
+            Cell {
+                glyph: Glyph::new('x').unwrap(),
+                intensity: 255,
+            },
+        );
+        let mut renderer = Renderer::new(Palette::Monochrome);
+        assert!(renderer.draw(&frame, &mut Broken).is_err());
+        let mut bytes = Vec::new();
+        renderer.draw(&frame, &mut bytes).unwrap();
+        assert_eq!(bytes, b"\x1b[2J\x1b[1;1Hx");
+    }
     use stillterm_engine::Glyph;
 
     #[test]

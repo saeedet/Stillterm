@@ -56,3 +56,25 @@ pub fn install_panic_hook() {
         previous(info);
     }));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires an isolated PTY; run scripts/check-terminal.py --panic-check"]
+    fn panic_restores_terminal() {
+        install_panic_hook();
+        let unwind = std::panic::catch_unwind(|| {
+            let _session = Session::enter().expect("PTY setup");
+            panic!("intentional terminal cleanup test");
+        });
+        assert!(unwind.is_err());
+        assert!(!terminal::is_raw_mode_enabled().unwrap());
+        assert!(!ACTIVE.load(Ordering::SeqCst));
+        // Let the parent inspect actual termios before Cargo closes its PTY.
+        println!("STILLTERM_CLEANUP_READY");
+        io::stdout().flush().unwrap();
+        io::stdin().read_line(&mut String::new()).unwrap();
+    }
+}
