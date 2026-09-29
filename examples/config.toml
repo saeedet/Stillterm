@@ -1,0 +1,8 @@
+# Load with: stillterm --config examples/config.toml
+effect = "rain"
+fps = 30
+speed = 1.0
+density = 0.18
+intensity = 0.7
+characters = "0123456789.:+*"
+seed = 42

@@ -1,5 +1,6 @@
 [workspace]
-members = ["crates/engine"]
+members = ["crates/engine", "crates/terminal"]
+default-members = ["crates/terminal"]
 resolver = "3"
 
 [workspace.package]
@@ -18,4 +19,3 @@ all = "warn"
 [profile.release]
 lto = "thin"
 strip = "debuginfo"
-
