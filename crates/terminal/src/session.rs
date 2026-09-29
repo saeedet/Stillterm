@@ -17,6 +17,12 @@ pub struct Session;
 
 impl Session {
     pub fn enter() -> io::Result<Self> {
+        #[cfg(windows)]
+        if !crossterm::ansi_support::supports_ansi() {
+            return Err(io::Error::other(
+                "an ANSI-capable Windows terminal is required",
+            ));
+        }
         terminal::enable_raw_mode()?;
         ACTIVE.store(true, Ordering::SeqCst);
         let session = Self;

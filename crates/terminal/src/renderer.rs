@@ -1,9 +1,9 @@
 use std::io::{self, Write};
 
 use crossterm::{
+    Command,
     cursor::MoveTo,
-    queue,
-    style::{Color, Print, SetBackgroundColor, SetForegroundColor},
+    style::{Color, SetBackgroundColor, SetForegroundColor},
     terminal::{Clear, ClearType},
 };
 use stillterm_engine::{Cell, Frame, GridSize};
@@ -73,7 +73,7 @@ pub struct Renderer {
     palette: Palette,
     size: Option<GridSize>,
     previous: Vec<PresentedCell>,
-    bytes: Vec<u8>,
+    bytes: String,
 }
 
 impl Renderer {
@@ -82,12 +82,20 @@ impl Renderer {
             palette,
             size: None,
             previous: Vec::new(),
-            bytes: Vec::new(),
+            bytes: String::new(),
         }
     }
 
     pub fn invalidate(&mut self) {
         self.size = None;
+    }
+
+    fn encode(&mut self, command: impl Command) -> io::Result<()> {
+        // queue! can bypass the buffer and call WinAPI on Windows. Encoding
+        // explicitly keeps frame generation pure, including when tested in CI.
+        command
+            .write_ansi(&mut self.bytes)
+            .map_err(|_| io::Error::other("cannot encode terminal command"))
     }
 
     pub fn draw(&mut self, frame: &Frame, output: &mut impl Write) -> io::Result<()> {
@@ -99,9 +107,9 @@ impl Renderer {
             self.size = Some(size);
             // Keep NO_COLOR meaningful while still clearing stale glyphs on resize.
             if !matches!(self.palette, Palette::Monochrome) {
-                queue!(self.bytes, SetBackgroundColor(Color::Black))?;
+                self.encode(SetBackgroundColor(Color::Black))?;
             }
-            queue!(self.bytes, Clear(ClearType::All))?;
+            self.encode(Clear(ClearType::All))?;
         }
         let mut cursor = None;
         let mut foreground = None;
@@ -117,24 +125,24 @@ impl Renderer {
             let column = (index % usize::from(size.columns())) as u16;
             let row = (index / usize::from(size.columns())) as u16;
             if cursor != Some((column, row)) {
-                queue!(self.bytes, MoveTo(column, row))?;
+                self.encode(MoveTo(column, row))?;
             }
             if presented != PresentedCell::BLANK && foreground != Some(presented.level) {
                 if !matches!(self.palette, Palette::Monochrome) {
-                    queue!(
-                        self.bytes,
-                        SetForegroundColor(self.palette.color(presented.level))
-                    )?;
+                    self.encode(SetForegroundColor(self.palette.color(presented.level)))?;
                 }
                 foreground = Some(presented.level);
             }
-            queue!(self.bytes, Print(presented.glyph))?;
+            self.bytes.push(presented.glyph);
             self.previous[index] = presented;
             cursor = Some((column + 1, row));
         }
         if !self.bytes.is_empty() {
             // A failed write leaves the cached screen uncertain; repaint on retry.
-            if let Err(error) = output.write_all(&self.bytes).and_then(|()| output.flush()) {
+            if let Err(error) = output
+                .write_all(self.bytes.as_bytes())
+                .and_then(|()| output.flush())
+            {
                 self.invalidate();
                 return Err(error);
             }
