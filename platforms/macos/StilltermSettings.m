@@ -1,4 +1,5 @@
 #import "StilltermSettings.h"
+#import <ScreenSaver/ScreenSaver.h>
 #include <errno.h>
 #include <math.h>
 
@@ -12,6 +13,10 @@
         _fps = 30;
         _fontSize = 18;
         _characters = @"";
+        // ScreenSaverDefaults caches its own module dictionary across view
+        // instances. Refresh it before reading changes saved by another host.
+        // This is specific to ScreenSaverDefaults, not ordinary NSUserDefaults.
+        if ([defaults isKindOfClass:ScreenSaverDefaults.class]) [defaults synchronize];
         NSDictionary *saved = [defaults dictionaryForKey:@"SettingsV1"];
         if (saved) {
             NSArray *numeric = @[@"theme", @"seed", @"speed", @"density", @"intensity", @"fps", @"fontSize"];

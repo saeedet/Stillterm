@@ -46,7 +46,8 @@ CLI's single-column validation. Monochrome is the default.
 
 Preferences use Apple's `ScreenSaverDefaults`, under
 `io.github.saeedet.Stillterm`, independently of CLI TOML files. Each native view
-owns its engine and reloads preferences on its next start. Changes in a different
+owns its engine and refreshes the ScreenSaverDefaults cache before loading
+preferences on its next start. Changes in a different
 host process take effect when that screensaver instance restarts.
 
 ## Checks and limits
@@ -60,7 +61,8 @@ Checks load the actual bundle into a temporary native window and exercise drawin
 resizing (including an empty surface), independent instances, repeated start/stop,
 late callbacks, remote-host window visibility, hidden views, simulated sleep/wake
 notifications, and the options
-sheet. Preference tests use a disposable, isolated domain. The pixel check verifies
+sheet. Preference tests use disposable, isolated domains and a separate writer process
+to check switching from Matrix to Monochrome and back. The pixel check verifies
 that the Matrix theme produces green glyphs through Core Text. A native frame is
 saved at `target/macos/preview.png` for inspection.
 

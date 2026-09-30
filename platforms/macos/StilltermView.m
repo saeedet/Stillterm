@@ -56,9 +56,9 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     if (_running) return;
     [self reloadSettings];
     _running = YES;
-    os_log(OS_LOG_DEFAULT, "Stillterm start: build=%{public}@ preview=%d windowVisible=%d occlusion=%lu",
+    os_log(OS_LOG_DEFAULT, "Stillterm start: build=%{public}@ theme=%u preview=%d windowVisible=%d occlusion=%lu",
         [[NSBundle bundleForClass:StilltermView.class] objectForInfoDictionaryKey:@"CFBundleVersion"],
-        self.isPreview, self.window.visible, (unsigned long)self.window.occlusionState);
+        _settings.options.theme, self.isPreview, self.window.visible, (unsigned long)self.window.occlusionState);
     [super startAnimation];
 }
 - (void)stopAnimation {
