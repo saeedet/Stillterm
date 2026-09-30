@@ -12,8 +12,9 @@ reached; allocations were not instrumented in the measurements below.
 
 ## Initial baseline
 
-Measured on 2026-09-30: Apple M3, macOS 14.6.1, Rust 1.97.1, release profile,
-default settings, seed 42. Each CLI run lasted approximately 10 seconds at 30 FPS.
+Measured on 2026-09-30 at commit `e7ed24c`: Apple M3, macOS 14.6.1, Rust 1.97.1,
+release profile, default settings, seed 42. Each CLI run lasted approximately
+10 seconds at 30 FPS. The later Windows encoding fix has not been re-benchmarked.
 CPU percentage is relative to one core. These are local observations, not portable
 performance guarantees.
 
