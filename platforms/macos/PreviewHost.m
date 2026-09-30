@@ -34,6 +34,17 @@ static NSUInteger visiblePixels(NSBitmapImageRep *rep, BOOL greenOnly) {
     }
     return count;
 }
+// Remote screensaver surfaces need not report desktop-window visibility.
+@interface STRemoteVisibilityWindow : NSWindow
+@property(nonatomic) BOOL simulateRemoteVisibility;
+@end
+@implementation STRemoteVisibilityWindow
+- (BOOL)isVisible { return self.simulateRemoteVisibility ? NO : [super isVisible]; }
+- (NSWindowOcclusionState)occlusionState {
+    return self.simulateRemoteVisibility ? 0 : [super occlusionState];
+}
+@end
+
 @interface STPreviewDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 @property(nonatomic, strong) NSWindow *window;
 @property(nonatomic, strong) ScreenSaverView *saver;
@@ -62,7 +73,7 @@ int main(int argc, const char *argv[]) {
         require([viewClass isSubclassOfClass:ScreenSaverView.class], @"Principal class must be a ScreenSaverView");
         STPreviewDelegate *delegate = [STPreviewDelegate new]; NSApp.delegate = delegate;
         [NSApp finishLaunching];
-        NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(120, 120, 800, 540)
+        STRemoteVisibilityWindow *window = [[STRemoteVisibilityWindow alloc] initWithContentRect:NSMakeRect(120, 120, 800, 540)
             styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable
             backing:NSBackingStoreBuffered defer:NO];
         window.title = @"Stillterm Preview"; window.releasedWhenClosed = NO; window.delegate = delegate;
@@ -93,6 +104,14 @@ int main(int argc, const char *argv[]) {
         require(greenPixels > 100, @"Matrix must draw green glyphs through Core Text");
         if (argc >= 4) require([[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
             writeToFile:[NSString stringWithUTF8String:argv[3]] atomically:YES], @"Write snapshot");
+        window.simulateRemoteVisibility = YES;
+        [view animateOneFrame];
+        require([view valueForKey:@"cells"] != nil, @"Remote host visibility must not suppress rendering");
+        NSData *remoteBefore = [[view valueForKey:@"cells"] copy];
+        pump(0.15);
+        require(![remoteBefore isEqual:[view valueForKey:@"cells"]], @"Remote-hosted rain must advance");
+        window.simulateRemoteVisibility = NO;
+        require(visiblePixels(snapshot(view), YES) > 100, @"Remote-hosted frame must contain green glyphs");
         NSData *before = [[view valueForKey:@"cells"] copy];
         pump(0.15);
         require(![before isEqual:[view valueForKey:@"cells"]], @"Animation must advance");

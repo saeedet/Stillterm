@@ -3,6 +3,7 @@
 #import <CoreText/CoreText.h>
 #import <QuartzCore/QuartzCore.h>
 #include <math.h>
+#import <os/log.h>
 
 static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 
@@ -16,7 +17,7 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     uint32_t _columns, _rows;
     CGFloat _cellWidth, _cellHeight;
     CFTimeInterval _lastTime;
-    BOOL _running, _sleeping, _failed;
+    BOOL _running, _sleeping, _failed, _reportedFrame;
 }
 - (instancetype)initWithFrame:(NSRect)frame isPreview:(BOOL)isPreview {
     if ((self = [super initWithFrame:frame isPreview:isPreview])) {
@@ -32,7 +33,7 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 - (void)releaseEngine {
     st_destroy(_engine); _engine = NULL;
     _cells = nil; _nextCells = nil; _lines = nil; _font = nil;
-    _columns = 0; _rows = 0; _lastTime = 0;
+    _columns = 0; _rows = 0; _lastTime = 0; _reportedFrame = NO;
 }
 - (void)reloadSettings {
     [self releaseEngine];
@@ -55,6 +56,9 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     if (_running) return;
     [self reloadSettings];
     _running = YES;
+    os_log(OS_LOG_DEFAULT, "Stillterm start: build=%{public}@ preview=%d windowVisible=%d occlusion=%lu",
+        [[NSBundle bundleForClass:StilltermView.class] objectForInfoDictionaryKey:@"CFBundleVersion"],
+        self.isPreview, self.window.visible, (unsigned long)self.window.occlusionState);
     [super startAnimation];
 }
 - (void)stopAnimation {
@@ -111,18 +115,27 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 }
 - (void)animateOneFrame {
     if (!_running || _sleeping || _failed) return;
-    // Do not keep rendering hidden/detached instances retained by the host.
-    if (!self.window || !self.window.visible || self.hiddenOrHasHiddenAncestor ||
-        !(self.window.occlusionState & NSWindowOcclusionStateVisible)) {
+    // macOS can present a remote surface whose NSWindow is neither visible nor
+    // unoccluded locally. ScreenSaverView's lifecycle controls animation; only
+    // explicit view hiding or detachment suppresses an active host's callbacks.
+    if (!self.window || self.hiddenOrHasHiddenAncestor) {
         [self releaseEngine]; return;
     }
-    if (![self prepareFrame]) { _failed = YES; [self releaseEngine]; return; }
+    if (![self prepareFrame]) {
+        os_log_error(OS_LOG_DEFAULT, "Stillterm could not prepare its frame");
+        _failed = YES; [self releaseEngine]; self.needsDisplay = YES; return;
+    }
     CFTimeInterval now = CACurrentMediaTime();
     uint64_t elapsed = _lastTime > 0 ? (uint64_t)(MAX(0.0, MIN(0.25, now - _lastTime)) * 1e9) : 0;
     _lastTime = now;
     if (st_advance(_engine, elapsed) != ST_OK ||
         st_copy_frame(_engine, _nextCells.mutableBytes, (NSUInteger)_columns * _rows) != ST_OK) {
+        os_log_error(OS_LOG_DEFAULT, "Stillterm engine update failed");
         _failed = YES; [self releaseEngine]; self.needsDisplay = YES; return;
+    }
+    if (!_reportedFrame && _columns > 0 && _rows > 0) {
+        os_log(OS_LOG_DEFAULT, "Stillterm frame ready: %u x %u", _columns, _rows);
+        _reportedFrame = YES;
     }
     if (_columns == 0 || _rows == 0) return;
     const StCell *previous = _cells.bytes, *next = _nextCells.bytes;

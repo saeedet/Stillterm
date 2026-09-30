@@ -58,7 +58,8 @@ scripts/check-macos.sh
 
 Checks load the actual bundle into a temporary native window and exercise drawing,
 resizing (including an empty surface), independent instances, repeated start/stop,
-late callbacks, hidden views, simulated sleep/wake notifications, and the options
+late callbacks, remote-host window visibility, hidden views, simulated sleep/wake
+notifications, and the options
 sheet. Preference tests use a disposable, isolated domain. The pixel check verifies
 that the Matrix theme produces green glyphs through Core Text. A native frame is
 saved at `target/macos/preview.png` for inspection.
@@ -80,7 +81,9 @@ macOS builds and physical Intel/Apple Silicon machines:
 The standalone host does not establish all of those behaviors. Apple documents
 that callbacks can arrive after `stopAnimation`; Stillterm explicitly ignores them,
 frees frame resources on stop/sleep, and avoids rendering hidden or detached views.
-Apple's forums also track host lifecycle and multi-display regressions. No private
+Window visibility and occlusion flags are not used to gate animation: a remote
+host can display a surface even when its local window reports invisible. Apple's
+forums also track host lifecycle and multi-display regressions. No private
 notification names, process-killing workarounds, or lock-screen changes are used.
 [Lifecycle contract](https://developer.apple.com/documentation/screensaver),
 [host reports](https://developer.apple.com/forums/thread/787444).
@@ -115,3 +118,9 @@ installation is tested. Credentials stay outside the repository. These distribut
 steps remain unverified until a maintainer supplies a signing identity; CI artifacts
 are development builds and are not automatically published as GitHub Releases.
 [Apple distribution guidance](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
+
+If a preview stays black after an update, confirm macOS loaded the new build.
+Stillterm logs its bundle build number at start and reports when its first frame
+is ready. These messages can be found in Console by searching for `Stillterm`.
+Close System Settings before replacing the bundle. If it keeps loading an older
+build, log out and back in to clear the retained screensaver host.
