@@ -9,9 +9,15 @@ static void require(BOOL condition, NSString *message) {
 }
 static void pump(NSTimeInterval seconds) {
     NSDate *end = [NSDate dateWithTimeIntervalSinceNow:seconds];
-    while (end.timeIntervalSinceNow > 0)
-        [NSRunLoop.currentRunLoop runMode:NSDefaultRunLoopMode beforeDate:
-            [NSDate dateWithTimeIntervalSinceNow:MIN(0.01, end.timeIntervalSinceNow)]];
+    while (end.timeIntervalSinceNow > 0) {
+        @autoreleasepool {
+            NSEvent *event = [NSApp nextEventMatchingMask:NSEventMaskAny untilDate:
+                [NSDate dateWithTimeIntervalSinceNow:MIN(0.01, end.timeIntervalSinceNow)]
+                inMode:NSDefaultRunLoopMode dequeue:YES];
+            if (event) [NSApp sendEvent:event];
+            [NSApp updateWindows];
+        }
+    }
 }
 static NSBitmapImageRep *snapshot(NSView *view) {
     NSBitmapImageRep *rep = [view bitmapImageRepForCachingDisplayInRect:view.bounds];
@@ -48,13 +54,14 @@ int main(int argc, const char *argv[]) {
         if (argc < 2) { fprintf(stderr, "Usage: preview-host bundle [--check [snapshot.png]]\n"); return 2; }
         BOOL check = argc >= 3 && strcmp(argv[2], "--check") == 0;
         [NSApplication sharedApplication];
-        [NSApp setActivationPolicy:check ? NSApplicationActivationPolicyAccessory : NSApplicationActivationPolicyRegular];
+        [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         NSBundle *bundle = [NSBundle bundleWithPath:[NSString stringWithUTF8String:argv[1]]];
         NSError *error;
         require([bundle loadAndReturnError:&error], error.localizedDescription ?: @"Bundle did not load");
         Class viewClass = bundle.principalClass;
         require([viewClass isSubclassOfClass:ScreenSaverView.class], @"Principal class must be a ScreenSaverView");
         STPreviewDelegate *delegate = [STPreviewDelegate new]; NSApp.delegate = delegate;
+        [NSApp finishLaunching];
         NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(120, 120, 800, 540)
             styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable
             backing:NSBackingStoreBuffered defer:NO];
@@ -67,7 +74,7 @@ int main(int argc, const char *argv[]) {
         [window.contentView addSubview:button];
         delegate.window = window; delegate.saver = view;
         [window makeKeyAndOrderFront:nil];
-        if (!check) [NSApp activateIgnoringOtherApps:YES];
+        [NSApp activateIgnoringOtherApps:YES];
         [view startAnimation];
         if (!check) { [NSApp run]; return 0; }
 
@@ -79,7 +86,11 @@ int main(int argc, const char *argv[]) {
         pump(0.4);
         [view animateOneFrame];
         NSBitmapImageRep *rep = snapshot(view);
-        require(visiblePixels(rep, YES) > 100, @"Matrix must draw green glyphs through Core Text");
+        NSUInteger greenPixels = visiblePixels(rep, YES);
+        fprintf(stderr, "Native render: visible=%d occlusion=%lu frameBytes=%lu greenPixels=%lu\n",
+            window.visible, (unsigned long)window.occlusionState,
+            (unsigned long)[(NSData *)[view valueForKey:@"cells"] length], (unsigned long)greenPixels);
+        require(greenPixels > 100, @"Matrix must draw green glyphs through Core Text");
         if (argc >= 4) require([[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
             writeToFile:[NSString stringWithUTF8String:argv[3]] atomically:YES], @"Write snapshot");
         NSData *before = [[view valueForKey:@"cells"] copy];
