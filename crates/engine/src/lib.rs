@@ -13,3 +13,6 @@ pub use config::{ConfigError, EffectConfig};
 pub use engine::{Engine, TICKS_PER_SECOND};
 pub use frame::{Cell, Frame, Glyph, GridSize, MAX_CELLS};
 pub use theme::{RainDefaults, Theme};
+
+mod timing;
+pub use timing::StepClock;

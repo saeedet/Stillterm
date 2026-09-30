@@ -1,0 +1,21 @@
+[package]
+name = "stillterm-macos-bridge"
+description = "Private C ABI for the Stillterm macOS screensaver"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+stillterm-engine = { path = "../engine" }
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+all = "warn"
+undocumented_unsafe_blocks = "deny"
