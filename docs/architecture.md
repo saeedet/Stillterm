@@ -16,7 +16,10 @@ Future macOS / Windows / Linux adapters
 built-in effect with an explicit ChaCha8 seed. `Engine::new` accepts another
 effect without changing the scheduler or renderer.
 
-`Frame` stores row-major `Cell` values: a validated `Glyph` and an intensity byte.
+`Frame` stores row-major `Cell` values: a validated `Glyph`, an intensity byte,
+and an emphasis hint identifying a stream head. Monochrome ignores that hint;
+the Matrix palette uses it for pale leading characters. Shared `Theme` presets
+provide effect defaults and ideal RGB values without accessing display APIs.
 Its dimensions and storage length cannot disagree through the public API.
 `GridSize` limits allocation to 262,144 cells; zero-sized grids are valid.
 Out-of-bounds `Frame::set` calls are clipped. Native renderers map cells to font

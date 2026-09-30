@@ -7,7 +7,9 @@ mod config;
 pub mod effects;
 mod engine;
 mod frame;
+mod theme;
 
 pub use config::{ConfigError, EffectConfig};
 pub use engine::{Engine, TICKS_PER_SECOND};
 pub use frame::{Cell, Frame, Glyph, GridSize, MAX_CELLS};
+pub use theme::{RainDefaults, Theme};

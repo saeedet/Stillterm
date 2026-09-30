@@ -1,5 +1,6 @@
 # Load with: stillterm --config examples/config.toml
 effect = "rain"
+theme = "monochrome"
 fps = 30
 speed = 1.0
 density = 0.18

@@ -45,14 +45,37 @@ Press **q**, **Escape**, or **Ctrl+C** to quit. Resize the terminal while it run
 For development without installation, use `cargo run --release -- --seed 42`.
 Use an ANSI-capable terminal; Windows Terminal is the intended Windows surface.
 
+## Matrix theme
+
+```sh
+stillterm --theme matrix
+stillterm --config examples/matrix.toml
+```
+
+Green trails, pale heads, and half-width Katakana mixed with digits and symbols.
+The preset uses speed `1.6`, density `0.35`, and intensity `1.0`; explicit file or
+CLI settings override those defaults. The original look remains the default and
+is available as `--theme monochrome`.
+
+![Matrix theme at seed 42 and four seconds](docs/media/matrix.svg)
+
+*Engine snapshot using the theme's ideal colors; terminal palettes and fonts vary.*
+
+Use a font with half-width Katakana support. For an ASCII fallback, add
+`--characters '0123456789:<>*+-'`. Standard terminal glyphs cannot reproduce the
+movie's mirrored characters. True-color terminals show the smoothest green ramp;
+256-color and basic-color terminals use reduced palettes. `NO_COLOR` disables color.
+
 ## Configure
 
 Settings apply in this order: built-in defaults, an explicitly supplied TOML file,
-then command-line overrides. No configuration file is written automatically.
+then command-line overrides. The selected theme supplies defaults for omitted
+visual settings. No configuration file is written automatically.
 
 | Setting | Default | Accepted values |
 | --- | --- | --- |
 | `effect` | `"rain"` | `rain` |
+| `theme` | `"monochrome"` | `monochrome`, `matrix` |
 | `fps` | `30` | Integer, 10–60 |
 | `speed` | `1.0` | 0.1–4.0 |
 | `density` | `0.18` | 0.0–1.0; stream activation probability |
@@ -61,6 +84,7 @@ then command-line overrides. No configuration file is written automatically.
 | `seed` | `42` | Unsigned 64-bit integer |
 
 See [the example configuration](examples/config.toml) or `stillterm --help`.
+The numeric and character defaults in the table describe the monochrome theme.
 ASCII is the most portable character set. Wide, combining, control, and
 ambiguous-width characters are rejected. Nonempty `NO_COLOR` disables color;
 other terminals use a detected grayscale or basic-color palette.

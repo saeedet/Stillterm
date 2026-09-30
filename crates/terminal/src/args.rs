@@ -17,19 +17,22 @@ pub struct Args {
     /// Animation to run [default: rain]
     #[arg(long, global = true)]
     pub effect: Option<String>,
+    /// Visual preset [default: monochrome]
+    #[arg(long, global = true, value_parser = ["monochrome", "matrix"])]
+    pub theme: Option<String>,
     /// Presentation frames per second (10–60) [default: 30]
     #[arg(long, global = true)]
     pub fps: Option<u16>,
-    /// Animation speed (0.1–4.0) [default: 1.0]
+    /// Animation speed (0.1–4.0); overrides the theme preset
     #[arg(long, global = true)]
     pub speed: Option<f64>,
-    /// Stream activation probability (0.0–1.0) [default: 0.18]
+    /// Stream activation probability (0.0–1.0); overrides the theme preset
     #[arg(long, global = true)]
     pub density: Option<f64>,
-    /// Maximum brightness (0.0–1.0) [default: 0.7]
+    /// Maximum brightness (0.0–1.0); overrides the theme preset
     #[arg(long, global = true)]
     pub intensity: Option<f64>,
-    /// Printable single-column characters [default: 0123456789.:+*]
+    /// Printable single-column characters; overrides the theme preset
     #[arg(long, global = true)]
     pub characters: Option<String>,
     /// Reproducible random seed [default: 42]

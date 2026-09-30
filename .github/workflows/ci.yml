@@ -32,6 +32,8 @@ jobs:
         run: |
           cargo run --quiet --locked -p stillterm-engine --example snapshot > "$RUNNER_TEMP/rain.svg"
           diff -u docs/media/rain.svg "$RUNNER_TEMP/rain.svg"
+          cargo run --quiet --locked -p stillterm-engine --example snapshot -- matrix > "$RUNNER_TEMP/matrix.svg"
+          diff -u docs/media/matrix.svg "$RUNNER_TEMP/matrix.svg"
 
   test:
     name: Test (${{ matrix.os }}, Rust ${{ matrix.rust }})
@@ -60,4 +62,6 @@ jobs:
           python-version: '3.12'
       - name: Verify terminal lifecycle
         if: runner.os != 'Windows'
-        run: python3 scripts/check-terminal.py --panic-check
+        run: |
+          python3 scripts/check-terminal.py --panic-check
+          python3 scripts/check-terminal.py --theme matrix

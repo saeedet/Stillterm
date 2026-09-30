@@ -21,6 +21,7 @@ For terminal changes, run these additional checks on macOS or Linux with Python 
 ```sh
 cargo build --locked
 python3 scripts/check-terminal.py --panic-check
+python3 scripts/check-terminal.py --theme matrix
 ```
 
 The PTY harness checks quit keys, signals, resizing, error recovery, and panic
@@ -39,6 +40,7 @@ Regenerate the README snapshot after intentional visual changes:
 
 ```sh
 cargo run --locked -p stillterm-engine --example snapshot > docs/media/rain.svg
+cargo run --locked -p stillterm-engine --example snapshot -- matrix > docs/media/matrix.svg
 ```
 
 Check resource-sensitive changes using [the measurement tools](docs/performance.md).

@@ -26,17 +26,20 @@ impl Glyph {
     }
 }
 
-/// Monochrome visual state, independent of any palette or font.
+/// Visual state, independent of any palette or font.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cell {
     pub glyph: Glyph,
     pub intensity: u8,
+    /// Highlights a stream head; renderers may ignore this presentation hint.
+    pub emphasis: bool,
 }
 
 impl Cell {
     pub const BLANK: Self = Self {
         glyph: Glyph::SPACE,
         intensity: 0,
+        emphasis: false,
     };
 }
 

@@ -30,7 +30,7 @@ def set_size(slave, columns, rows):
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
 
 
-def check(binary, mode):
+def check(binary, mode, theme):
     master, slave = os.openpty()
     set_size(slave, 80, 24)
     original = termios.tcgetattr(slave)
@@ -38,7 +38,7 @@ def check(binary, mode):
     process = None
     try:
         process = subprocess.Popen(
-            [binary, "--seed", "42"],
+            [binary, "--seed", "42", "--theme", theme],
             stdin=slave, stdout=slave, stderr=slave,
             env={**os.environ, "TERM": "xterm-256color"},
             start_new_session=True,
@@ -95,11 +95,12 @@ def check(binary, mode):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("binary", nargs="?", default="target/debug/stillterm")
+    parser.add_argument("--theme", choices=["monochrome", "matrix"], default="monochrome")
     parser.add_argument("--panic-check", action="store_true", help="also run the Rust panic cleanup test in a PTY")
     args = parser.parse_args()
     binary = str(Path(args.binary).resolve())
     for mode in ("q", "escape", "ctrl-c", "SIGINT", "SIGTERM", "SIGHUP", "resize", "resize-error"):
-        check(binary, mode)
+        check(binary, mode, args.theme)
     if args.panic_check:
         check_panic()
 

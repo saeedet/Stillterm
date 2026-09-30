@@ -119,6 +119,7 @@ fn grid_limits_and_cell_boundaries_are_checked() {
     let cell = Cell {
         glyph: Glyph::new('x').unwrap(),
         intensity: 200,
+        emphasis: false,
     };
     frame.set(1, 0, cell);
     frame.set(2, 0, cell);

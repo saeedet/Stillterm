@@ -111,6 +111,7 @@ impl Effect for Rain {
                     Cell {
                         glyph,
                         intensity: intensity as u8,
+                        emphasis: row == head_row,
                     },
                 );
             }

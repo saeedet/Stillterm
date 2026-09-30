@@ -1,0 +1,10 @@
+# Load with: stillterm --config examples/matrix.toml
+theme = "matrix"
+fps = 30
+seed = 42
+
+# Optional overrides; omitted values use the theme preset.
+# speed = 1.6
+# density = 0.35
+# intensity = 1.0
+# characters = "0123456789:<>*+-" # ASCII fallback for fonts without Katakana

@@ -28,6 +28,7 @@ fn invalid_configuration_fails_before_terminal_setup() {
     for flags in [
         ["--fps", "0"],
         ["--effect", "unknown"],
+        ["--theme", "unknown"],
         ["--intensity", "NaN"],
         ["--characters", "\x1b"],
     ] {

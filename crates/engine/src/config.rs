@@ -66,6 +66,6 @@ impl EffectConfig {
 
 impl Default for EffectConfig {
     fn default() -> Self {
-        Self::new(1.0, 0.18, 0.7, "0123456789.:+*").expect("valid built-in settings")
+        crate::Theme::Monochrome.rain_config()
     }
 }

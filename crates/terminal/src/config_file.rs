@@ -1,7 +1,7 @@
 use std::{error::Error, fs::File, io::Read};
 
 use serde::Deserialize;
-use stillterm_engine::EffectConfig;
+use stillterm_engine::{EffectConfig, Theme};
 
 use crate::args::Args;
 
@@ -9,11 +9,12 @@ use crate::args::Args;
 #[serde(default, deny_unknown_fields)]
 struct FileConfig {
     effect: String,
+    theme: String,
     fps: u16,
-    speed: f64,
-    density: f64,
-    intensity: f64,
-    characters: String,
+    speed: Option<f64>,
+    density: Option<f64>,
+    intensity: Option<f64>,
+    characters: Option<String>,
     seed: u64,
 }
 
@@ -21,17 +22,19 @@ impl Default for FileConfig {
     fn default() -> Self {
         Self {
             effect: "rain".into(),
+            theme: "monochrome".into(),
             fps: 30,
-            speed: 1.0,
-            density: 0.18,
-            intensity: 0.7,
-            characters: "0123456789.:+*".into(),
+            speed: None,
+            density: None,
+            intensity: None,
+            characters: None,
             seed: 42,
         }
     }
 }
 
 pub struct Settings {
+    pub theme: Theme,
     pub effect: EffectConfig,
     pub fps: u16,
     pub seed: u64,
@@ -65,12 +68,20 @@ impl Settings {
         if !(10..=60).contains(&fps) {
             return Err("fps must be between 10 and 60".into());
         }
+        let theme: Theme = args.theme.as_deref().unwrap_or(&config.theme).parse()?;
+        let defaults = theme.rain_defaults();
         Ok(Self {
+            theme,
             effect: EffectConfig::new(
-                args.speed.unwrap_or(config.speed),
-                args.density.unwrap_or(config.density),
-                args.intensity.unwrap_or(config.intensity),
-                args.characters.as_deref().unwrap_or(&config.characters),
+                args.speed.or(config.speed).unwrap_or(defaults.speed),
+                args.density.or(config.density).unwrap_or(defaults.density),
+                args.intensity
+                    .or(config.intensity)
+                    .unwrap_or(defaults.intensity),
+                args.characters
+                    .as_deref()
+                    .or(config.characters.as_deref())
+                    .unwrap_or(defaults.characters),
             )?,
             fps,
             seed: args.seed.unwrap_or(config.seed),
@@ -82,6 +93,38 @@ impl Settings {
 mod tests {
     use super::*;
     use clap::Parser;
+
+    #[test]
+    fn theme_defaults_apply_before_explicit_file_and_cli_settings() {
+        use stillterm_engine::{Engine, GridSize};
+        let args = Args::parse_from(["stillterm", "--theme", "matrix", "--speed", "0.5"]);
+        let settings = Settings::merge(
+            toml::from_str("characters = '01'\ndensity = 0.2").unwrap(),
+            &args,
+        )
+        .unwrap();
+        assert_eq!(settings.theme, Theme::Matrix);
+        let size = GridSize::new(40, 20).unwrap();
+        let mut actual = Engine::rain(size, settings.effect, 42);
+        let mut expected = Engine::rain(size, EffectConfig::new(0.5, 0.2, 1.0, "01").unwrap(), 42);
+        for _ in 0..60 {
+            actual.step();
+            expected.step();
+        }
+        assert_eq!(actual.frame(), expected.frame());
+        let file = toml::from_str("theme = 'matrix'").unwrap();
+        let settings = Settings::merge(file, &Args::parse_from(["stillterm"])).unwrap();
+        let mut actual = Engine::rain(size, settings.effect, 42);
+        let mut expected = Engine::rain(size, Theme::Matrix.rain_config(), 42);
+        assert_eq!(actual.frame(), expected.frame());
+        let file = toml::from_str("theme = 'matrix'").unwrap();
+        let settings = Settings::merge(
+            file,
+            &Args::parse_from(["stillterm", "--theme", "monochrome"]),
+        )
+        .unwrap();
+        assert_eq!(settings.theme, Theme::Monochrome);
+    }
 
     #[test]
     fn defaults_file_and_cli_have_explicit_precedence() {
@@ -107,6 +150,7 @@ mod tests {
             "speed = nan",
             "density = 2.0",
             "effect = 'other'",
+            "theme = 'other'",
             "characters = ''",
         ] {
             let config = toml::from_str(input).unwrap();

@@ -20,7 +20,7 @@ use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     terminal,
 };
-use stillterm_engine::{Engine, GridSize};
+use stillterm_engine::{Engine, GridSize, Theme};
 
 use args::{Args, Command};
 use config_file::Settings;
@@ -62,16 +62,21 @@ fn run() -> Result<(), Box<dyn Error>> {
     ctrlc::set_handler(move || signal_stop.store(true, Ordering::Relaxed))?;
     session::install_panic_hook();
     let session = Session::enter()?;
-    let result = animate(&mut engine, settings.fps, &stop);
+    let result = animate(&mut engine, settings.fps, settings.theme, &stop);
     let restored = session.finish();
     result?;
     restored?;
     Ok(())
 }
 
-fn animate(engine: &mut Engine, fps: u16, stop: &AtomicBool) -> Result<(), Box<dyn Error>> {
+fn animate(
+    engine: &mut Engine,
+    fps: u16,
+    theme: Theme,
+    stop: &AtomicBool,
+) -> Result<(), Box<dyn Error>> {
     let interval = Duration::from_secs_f64(1.0 / f64::from(fps));
-    let mut renderer = Renderer::new(Palette::detect());
+    let mut renderer = Renderer::new(Palette::detect(theme));
     let mut clock = StepClock::default();
     let mut previous_time = Instant::now();
     let mut next_frame = previous_time;
