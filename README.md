@@ -11,8 +11,8 @@ It has no background service or browser runtime.
 *Engine snapshot: seed 42, four seconds, 96×28 cells. Font and brightness vary by
 terminal. An animation recording is planned for the first release.*
 
-**Status:** Milestone 1 — terminal application. Native screensaver adapters are
-planned. Stillterm does not lock your session.
+**Status:** Terminal application and a macOS screensaver source-build preview.
+Windows and Linux native integration are planned. Stillterm does not lock your session.
 
 ## Install
 
@@ -28,8 +28,22 @@ cargo install --path crates/terminal --locked
 This installs `stillterm` into Cargo's binary directory. Ensure that directory is
 on your `PATH`. Uninstall with `cargo uninstall stillterm`.
 
-Prebuilt downloads and native installers are not available yet. There is no
+Signed prebuilt downloads are not available yet. There is no
 published crates.io package at this stage; use the source installation above.
+
+## macOS screensaver
+
+On macOS, build a universal native screensaver and try it in a window:
+
+```sh
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+scripts/build-macos.sh
+scripts/check-macos.sh --preview
+```
+
+Open `target/macos/Stillterm.saver` to install. It includes both themes and a native
+options panel. This is a development build; signed public distribution and the
+full system-host compatibility checklist are pending. See [macOS setup](docs/macos.md).
 
 ## Run
 
@@ -87,7 +101,7 @@ See [the example configuration](examples/config.toml) or `stillterm --help`.
 The numeric and character defaults in the table describe the monochrome theme.
 ASCII is the most portable character set. Wide, combining, control, and
 ambiguous-width characters are rejected. Nonempty `NO_COLOR` disables color;
-other terminals use a detected grayscale or basic-color palette.
+the monochrome theme otherwise uses a detected grayscale or basic-color palette.
 
 ## Platforms
 
@@ -96,12 +110,12 @@ other terminals use a detected grayscale or basic-color palette.
 | macOS terminal | Tested locally on Apple Silicon, including PTY lifecycle checks |
 | Windows terminal | Cross-checked for compilation; native CI configured; interactive testing pending |
 | Linux terminal | Cross-checked for compilation; native CI and PTY checks configured |
-| macOS `.saver` | Planned — Milestone 2 |
+| macOS `.saver` | Universal source build; native host checks; system-host validation pending |
 | Windows `.scr` | Planned — Milestone 3 |
 | Omarchy / Hyprland idle integration | Planned — Milestone 4; version-specific integration |
 
-CI results become available when this repository is pushed to GitHub. Native
-screensaver and lock-screen behavior is not provided by the terminal executable.
+[CI](https://github.com/saeedet/Stillterm/actions) checks the workspace and macOS
+bundle. The terminal executable does not provide native screensaver integration.
 See [platform research and acceptance checks](docs/platform-support.md).
 
 ## How it works
@@ -109,7 +123,8 @@ See [platform research and acceptance checks](docs/platform-support.md).
 `stillterm-engine` owns a character grid, seeded rain state, and fixed simulation
 steps. `stillterm` owns the terminal, configuration loading, timing, and input.
 The renderer compares presented cells and writes changed runs. The engine has no
-OS or graphical-framework dependencies, and both crates forbid unsafe Rust.
+OS or graphical-framework dependencies. Engine and CLI crates forbid unsafe Rust;
+the macOS bridge isolates the documented C interface.
 
 On the initial Apple M3 benchmark, the CLI used less than 1% of one CPU core at
 30 FPS in a drained pseudo-terminal. This excludes terminal-emulator rendering;

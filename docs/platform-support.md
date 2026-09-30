@@ -1,6 +1,7 @@
 # Platform support
 
-Milestone 1 provides the terminal application. Native adapters are not implemented.
+The terminal application and a macOS screensaver source-build preview are implemented.
+Windows and Omarchy native integration remain planned.
 Local validation used macOS 14.6.1 on Apple M3. Rust tests and PTY lifecycle checks
 passed there; Windows/Linux compilation checks and native CI complement this but
 do not replace interactive testing on those systems.
@@ -12,10 +13,10 @@ Apple's documented third-party mechanism is a `.saver` bundle containing a
 system-wide under `/Library/Screen Savers`. The plug-in architecture must match
 the host. [Apple framework](https://developer.apple.com/documentation/screensaver).
 
-Plan: a small Objective-C view, AppKit/Core Text drawing, and a Rust static library
-behind a narrow C ABI. Each view owns its own engine. Use native preference storage
-and translate settings into the core; do not assume access to CLI configuration.
-Build both arm64 and x86_64 slices and package a universal bundle.
+Implemented: a small Objective-C view, AppKit/Core Text drawing, and a Rust static
+library behind a narrow C ABI. Each view owns its engine and uses native preferences
+independently of CLI configuration. The build produces arm64 and x86_64 slices in
+a universal bundle. See [build instructions and validation limits](macos.md).
 [Universal binaries](https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary).
 
 Public releases need a Developer ID signing/notarization workflow and a tested
@@ -82,7 +83,8 @@ animation when locking starts; do not draw over a secure lock surface.
 First provide CLI archives with checksums after CI and terminal testing pass.
 Then add a signed/notarized macOS bundle, Windows `.scr` packaging, and a Linux
 binary with version-specific integration instructions as their milestones land.
-There is no release publishing workflow or installer in Milestone 1.
+The macOS build includes development disk-image packaging. Release publishing,
+Developer ID signing, and notarization are not automated in CI.
 
 Research reviewed 2026-09-30. Moving branches describe upstream direction;
 adapter implementation must record exact tested versions.

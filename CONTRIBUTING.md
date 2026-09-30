@@ -55,3 +55,12 @@ Keep documentation and tests alongside the behavior they describe.
 For terminal bugs, include OS, terminal emulator, Rust/Stillterm version, command,
 and whether resizing or suspension was involved. Remove private paths and any
 unrelated terminal contents from recordings.
+
+## Native macOS work
+
+Run `scripts/build-macos.sh` and `scripts/check-macos.sh` on macOS. The checks open
+a temporary native window and use isolated test preferences. `--preview` on the
+check script opens an interactive preview with the real options panel. See
+[macOS development and release checks](docs/macos.md). Keep animation rules in Rust
+and native lifecycle/presentation in `platforms/macos`; document every unsafe bridge
+contract. Update both the Rust C layouts and header together.

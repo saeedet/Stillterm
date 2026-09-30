@@ -1,12 +1,16 @@
 # Architecture
 
-Stillterm has two crates. The dependency flows from presentation to simulation:
+Stillterm has three crates. The dependency flows from presentation to simulation:
 
 ```text
 stillterm (CLI, timing, configuration files, terminal renderer)
     └── stillterm-engine (settings, effect state, character frames)
 
-Future macOS / Windows / Linux adapters
+macOS ScreenSaverView (Objective-C, Core Text, native preferences)
+    └── stillterm-macos-bridge (owned C handle, copied frames, panic containment)
+        └── stillterm-engine
+
+Future Windows / Linux adapters
     └── stillterm-engine
 ```
 
@@ -34,8 +38,8 @@ An empty grid discards streams and does not advance the rain state.
 ## Timing and determinism
 
 The engine never reads a clock. Each `step` advances 1/30 second of simulation.
-The terminal adapter accumulates integer elapsed nanoseconds and can present at
-10–60 FPS independently. Excess elapsed time beyond 250 ms per update is discarded
+The shared `StepClock` accumulates integer elapsed nanoseconds. Terminal and native
+adapters can present at 10–60 FPS independently. Excess elapsed time beyond 250 ms per update is discarded
 after a stall or suspension. Resizing discards fractional pending time.
 
 The same engine version, validated settings, seed, steps, and resize history
@@ -65,13 +69,28 @@ There is no mouse capture or job suspension binding. Forced kills, process abort
 and a terminal disappearing cannot guarantee cleanup. If an external failure
 leaves a Unix terminal unusable, `stty sane` or `reset` can restore it.
 
+## macOS boundary
+
+`stillterm-macos-bridge` builds a static library. `StilltermBridge.h` defines a
+private C ABI rebuilt with the bundle: validated numeric options, an opaque owned
+engine handle, and eight-byte cells with a Unicode scalar and RGB/visibility bytes.
+The caller owns the output buffer; Rust copies input characters and frame data.
+Handles must remain live and calls must be serialized. Raw pointers are confined
+to this crate, with explicit safety contracts. Unwinding panics poison a handle
+and return failure; invalid pointers, aborts, and allocation failure are not caught.
+
+Each `StilltermView` owns one handle, buffers, and a Core Text glyph cache. The
+native view advances using a monotonic clock, invalidates changed rows, and draws
+only dirty cells. The system owns the animation timer. Start/stop are guarded;
+stop and sleep release resources, and late callbacks do no work. Hidden/detached
+views suspend rendering. The settings sheet validates before persisting through
+`ScreenSaverDefaults`; it does not read CLI files or alter system lock preferences.
+
 ## Future adapters
 
-Each adapter owns its lifecycle and configuration persistence. The macOS adapter
-will use a small C ABI around Rust rather than exposing Rust layouts. Handles,
-buffer ownership, and panic containment must be explicit. OS-specific unsafe code
-belongs in its own adapter crate, with documented invariants.
+Each adapter owns its lifecycle and configuration persistence. OS-specific unsafe
+code belongs in its own adapter crate, with documented invariants.
 
 No universal renderer trait or plug-in loader is needed yet. Effects are ordinary
-Rust implementations compiled into the program. Colors, runtime effect discovery,
-and a shared native text renderer can follow actual requirements.
+Rust implementations compiled into the program. Runtime effect discovery and
+a shared native text renderer can follow actual requirements.

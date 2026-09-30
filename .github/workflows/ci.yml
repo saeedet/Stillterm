@@ -65,3 +65,25 @@ jobs:
         run: |
           python3 scripts/check-terminal.py --panic-check
           python3 scripts/check-terminal.py --theme matrix
+
+  macos-bundle:
+    name: macOS universal bundle
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.88.0
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - run: scripts/build-macos.sh
+      - run: scripts/check-macos.sh
+      - name: Archive development bundle
+        run: ditto -c -k --sequesterRsrc --keepParent target/macos/Stillterm.saver target/macos/Stillterm-development.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Stillterm-macos-development
+          path: target/macos/Stillterm-development.zip
+          retention-days: 14
