@@ -28,9 +28,13 @@ instances, preview behavior, and animations continuing after dismissal. These
 reports require testing on named OS builds; they do not establish that every
 current patch has the same bugs. [Apple discussion](https://developer.apple.com/forums/thread/787444).
 
-Acceptance: installation, preview, configuration, multiple displays, repeated
-start/stop, sleep/wake, resource use after dismissal, FFI ownership, and panic
-containment. Confirm both supported architectures before advertising them.
+Local acceptance completed on Apple M3 / macOS 14.6.1: installation, preview,
+configuration and theme switching, two displays, sleep/wake, and repeated
+dismissal. Build 4's full-screen helper returned to 0.0% CPU after dismissal.
+Automated checks cover FFI ownership, panic containment, and both bundle slices
+(the Intel slice locally under Rosetta). Physical Intel hardware, additional
+macOS versions, and clean-Mac distribution checks remain pending; see the
+[validation record](macos.md#checks-and-limits).
 
 ## Windows — Milestone 3
 

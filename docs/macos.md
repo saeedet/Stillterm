@@ -60,28 +60,34 @@ scripts/check-macos.sh
 Checks load the actual bundle into a temporary native window and exercise drawing,
 resizing (including an empty surface), independent instances, repeated start/stop,
 late callbacks, retained views after dismissal, remote-host window visibility,
-hidden views, simulated sleep/wake
-notifications, and the options
-sheet. Preference tests use disposable, isolated domains and a separate writer process
+hidden views, simulated sleep/wake notifications, and the options sheet.
+Preference tests use disposable, isolated domains and a separate writer process
 to check switching from Matrix to Monochrome and back. The pixel check verifies
 that the Matrix theme produces green glyphs through Core Text. A native frame is
 saved at `target/macos/preview.png` for inspection.
 
-Local validation: Apple M3, macOS 14.6.1 (23G93), Xcode 15.4, Rust 1.88.0. The bundle
-contains arm64 and x86_64 code. Both slices passed the native host checks locally
-(the Intel slice under Rosetta); physical Intel hardware remains untested. The deployment target is macOS 11, not a claim of testing every
-release since then. CI builds both slices and runs the native checks on its macOS
-runner.
+Local validation completed on 2026-10-01: Apple M3, macOS 14.6.1 (23G93),
+Xcode 15.4, Rust 1.88.0. Installed-screensaver checks covered installation,
+System Settings and full-screen previews, options and theme switching, idle
+activation, two physical displays, sleep/wake, and repeated dismissal. After the
+final repeated-preview test on build 4, the helper measured 0.0% CPU across three
+samples, with logs confirming that retained instances stopped rendering. This is
+an after-dismissal measurement, not an active-rendering performance claim.
 
-Before a public release, test the **installed system-hosted** screensaver on named
-macOS builds and physical Intel/Apple Silicon machines:
+The bundle contains arm64 and x86_64 code. Both slices passed the native host
+checks locally (the Intel slice under Rosetta); physical Intel hardware remains
+untested. The deployment target is macOS 11, not a claim of testing every release
+since then. CI builds both slices and runs the native checks on its macOS runner.
 
-- Install, System Settings preview, save/cancel options, uninstall and upgrade.
-- Multiple physical displays, mixed scaling, display connection changes.
-- Actual sleep/wake and repeated dismissal; confirm no ongoing rendering after exit.
-- Sustained CPU/memory at full display resolution and Gatekeeper on a clean Mac.
+Remaining release validation:
 
-The standalone host does not establish all of those behaviors. Apple documents
+- Physical Intel hardware and additional named macOS versions.
+- Broader display configurations, scaling, and display connection changes.
+- Sustained CPU/memory at full resolution over longer sessions.
+- Download, Gatekeeper, install, upgrade, and uninstall on a clean Mac using the
+  final signed and notarized package.
+
+Standalone host checks do not replace these installed-system checks. Apple documents
 that callbacks can arrive after `stopAnimation`; Stillterm explicitly ignores them,
 frees frame resources on stop/sleep, and avoids rendering hidden or detached views.
 Window visibility and occlusion flags are not used to gate animation: a remote
@@ -106,7 +112,16 @@ Local builds are ad-hoc signed. They are suitable for development, not a substit
 for Developer ID signing and notarization. Do not remove quarantine or disable
 Gatekeeper to distribute an unnotarized download.
 
-A maintainer with a Developer ID Application identity can build and package:
+The intended download is `Stillterm.dmg` on GitHub Releases. Users can install
+it without Rust or Xcode. Source builds remain available independently.
+
+For the signed download, a maintainer needs Apple Developer Program membership,
+a **Developer ID Application** certificate with its private key in the local
+Keychain, and notarization credentials stored in a Keychain profile. Keep private
+keys and credentials out of Git. See [Apple membership](https://developer.apple.com/support/compare-memberships/)
+and [Developer ID](https://developer.apple.com/developer-id/).
+
+With that signing identity installed, build and package:
 
 ```sh
 export STILLTERM_SIGN_IDENTITY='Developer ID Application: Your Name (TEAMID)'
@@ -127,7 +142,10 @@ shasum -a 256 target/macos/Stillterm.dmg
 
 Publish only after notarization reports **Accepted**, stapling passes, and clean-Mac
 installation is tested. Credentials stay outside the repository. These distribution
-steps remain unverified until a maintainer supplies a signing identity; CI artifacts
+steps remain unverified until a maintainer configures a signing identity. Then
+create a versioned GitHub Release with the verified disk image, its SHA-256
+checksum, installation instructions, and the exact tested macOS versions. Start
+with a prerelease while broader compatibility testing is pending. CI artifacts
 are development builds and are not automatically published as GitHub Releases.
 [Apple distribution guidance](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
 

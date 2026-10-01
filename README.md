@@ -1,6 +1,6 @@
 # Stillterm
 
-Quiet character animation for your terminal, built in Rust.
+Quiet character animation for your terminal and macOS screensaver, powered by Rust.
 
 Sparse streams, fading trails, and a small reusable animation engine. Stillterm
 runs directly in your terminal, with deterministic seeds and a 30 FPS default.
@@ -42,8 +42,10 @@ scripts/check-macos.sh --preview
 ```
 
 Open `target/macos/Stillterm.saver` to install. It includes both themes and a native
-options panel. This is a development build; signed public distribution and the
-full system-host compatibility checklist are pending. See [macOS setup](docs/macos.md).
+options panel. Local installed-screensaver testing passed on Apple M3 with macOS
+14.6.1, including theme switching, multiple displays, sleep/wake, and cleanup after
+dismissal. Signed, notarized downloads and broader compatibility testing are still
+pending. See [macOS setup and distribution](docs/macos.md).
 
 ## Run
 
@@ -110,7 +112,7 @@ the monochrome theme otherwise uses a detected grayscale or basic-color palette.
 | macOS terminal | Tested locally on Apple Silicon, including PTY lifecycle checks |
 | Windows terminal | Cross-checked for compilation; native CI configured; interactive testing pending |
 | Linux terminal | Cross-checked for compilation; native CI and PTY checks configured |
-| macOS `.saver` | Universal source build; native host checks; system-host validation pending |
+| macOS `.saver` | Installed screensaver tested on Apple M3 / macOS 14.6.1; Intel slice checked under Rosetta; signed downloads pending |
 | Windows `.scr` | Planned — Milestone 3 |
 | Omarchy / Hyprland idle integration | Planned — Milestone 4; version-specific integration |
 
