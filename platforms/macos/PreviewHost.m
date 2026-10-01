@@ -4,6 +4,12 @@
 #import "StilltermSettings.h"
 #include <sys/resource.h>
 
+// Invoke the dismissal handler locally; never broadcast a system notification
+// that could affect other running screensavers during tests.
+@interface ScreenSaverView (STLifecycleChecks)
+- (void)screenSaverWillStop:(NSNotification *)notification;
+@end
+
 static void require(BOOL condition, NSString *message) {
     if (!condition) { fprintf(stderr, "FAIL: %s\n", message.UTF8String); exit(1); }
 }
@@ -129,8 +135,33 @@ int main(int argc, const char *argv[]) {
         [window.contentView addSubview:second]; [second startAnimation]; pump(0.1);
         [view stopAnimation];
         require([second valueForKey:@"cells"] != nil, @"A second instance owns independent resources");
-        [second stopAnimation]; [second removeFromSuperview];
         [view startAnimation]; pump(0.1);
+        ScreenSaverView *third = [[viewClass alloc] initWithFrame:NSMakeRect(200, 0, 200, 120) isPreview:NO];
+        [window.contentView addSubview:third]; [third startAnimation]; pump(0.1);
+        require([third valueForKey:@"cells"] != nil, @"Both full-screen instances start rendering");
+        NSNotification *dismissal = [NSNotification notificationWithName:@"com.apple.screensaver.willstop" object:nil];
+        // Reproduce a host retaining multiple attached views and omitting stopAnimation.
+        for (ScreenSaverView *retained in @[second, third]) {
+            [retained screenSaverWillStop:dismissal];
+            [retained screenSaverWillStop:dismissal];
+            [retained animateOneFrame];
+            require(!retained.isAnimating && [retained valueForKey:@"cells"] == nil,
+                @"Dismissal stops retained timers and releases buffers despite late callbacks");
+        }
+        [view screenSaverWillStop:dismissal];
+        require(view.isAnimating && [view valueForKey:@"cells"] != nil, @"Dismissal leaves the settings preview active");
+        [NSWorkspace.sharedWorkspace.notificationCenter postNotificationName:NSWorkspaceWillSleepNotification object:nil];
+        [NSWorkspace.sharedWorkspace.notificationCenter postNotificationName:NSWorkspaceDidWakeNotification object:nil];
+        pump(0.15);
+        for (ScreenSaverView *retained in @[second, third]) {
+            [retained animateOneFrame];
+            require(!retained.isAnimating && [retained valueForKey:@"cells"] == nil,
+                @"Wake must not revive dismissed instances");
+        }
+        [second startAnimation]; pump(0.1);
+        require(second.isAnimating && [second valueForKey:@"cells"] != nil, @"An explicit host restart resumes rendering");
+        require([third valueForKey:@"cells"] == nil, @"Restarting one instance leaves older instances stopped");
+        [second stopAnimation]; [second removeFromSuperview]; [third removeFromSuperview];
         [NSWorkspace.sharedWorkspace.notificationCenter postNotificationName:NSWorkspaceWillSleepNotification object:nil];
         [view animateOneFrame];
         require([view valueForKey:@"cells"] == nil, @"Sleep releases buffers");

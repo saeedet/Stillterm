@@ -5,12 +5,17 @@
 #include <math.h>
 #import <os/log.h>
 
+// Sonoma can retain full-screen views without calling stopAnimation. This
+// undocumented notification is a best-effort cleanup signal, not a visibility
+// or lock-state test. Only our own animation and resources are stopped.
+static NSString *const STScreenSaverWillStop = @"com.apple.screensaver.willstop";
 static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 
 @implementation StilltermView {
     StEngine *_engine;
     StilltermSettings *_settings;
     StilltermOptionsController *_optionsController;
+    id _dismissObserver;
     NSMutableData *_cells, *_nextCells;
     NSMutableDictionary<NSNumber *, id> *_lines;
     NSFont *_font;
@@ -25,6 +30,12 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
         NSNotificationCenter *center = NSWorkspace.sharedWorkspace.notificationCenter;
         [center addObserver:self selector:@selector(willSleep:) name:NSWorkspaceWillSleepNotification object:nil];
         [center addObserver:self selector:@selector(didWake:) name:NSWorkspaceDidWakeNotification object:nil];
+        if (!isPreview) {
+            __weak StilltermView *weakSelf = self;
+            _dismissObserver = [NSDistributedNotificationCenter.defaultCenter
+                addObserverForName:STScreenSaverWillStop object:nil queue:NSOperationQueue.mainQueue
+                usingBlock:^(NSNotification *notification) { [weakSelf screenSaverWillStop:notification]; }];
+        }
     }
     return self;
 }
@@ -63,10 +74,19 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 }
 - (void)stopAnimation {
     // Apple may deliver one more animation callback after this method.
+    if (_running) os_log(OS_LOG_DEFAULT, "Stillterm stop: preview=%d", self.isPreview);
     _running = NO;
     [super stopAnimation];
     [self releaseEngine];
     self.needsDisplay = YES;
+}
+- (void)screenSaverWillStop:(NSNotification *)notification {
+    (void)notification;
+    // The observer delivers on the main queue. Do not resume old
+    // instances on a global start/wake signal: only startAnimation may do that.
+    if (self.isPreview || !_running) return;
+    os_log(OS_LOG_DEFAULT, "Stillterm dismissal: stopping retained full-screen view");
+    [self stopAnimation];
 }
 - (void)willSleep:(NSNotification *)notification {
     (void)notification; _sleeping = YES; [self releaseEngine];
@@ -116,8 +136,8 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 - (void)animateOneFrame {
     if (!_running || _sleeping || _failed) return;
     // macOS can present a remote surface whose NSWindow is neither visible nor
-    // unoccluded locally. ScreenSaverView's lifecycle controls animation; only
-    // explicit view hiding or detachment suppresses an active host's callbacks.
+    // unoccluded locally. Host lifecycle and the dismissal fallback control
+    // animation; explicit view hiding or detachment also suppresses callbacks.
     if (!self.window || self.hiddenOrHasHiddenAncestor) {
         [self releaseEngine]; return;
     }
@@ -188,6 +208,7 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 }
 - (void)dealloc {
     [NSWorkspace.sharedWorkspace.notificationCenter removeObserver:self];
+    if (_dismissObserver) [NSDistributedNotificationCenter.defaultCenter removeObserver:_dismissObserver];
     st_destroy(_engine);
 }
 @end

@@ -59,7 +59,8 @@ scripts/check-macos.sh
 
 Checks load the actual bundle into a temporary native window and exercise drawing,
 resizing (including an empty surface), independent instances, repeated start/stop,
-late callbacks, remote-host window visibility, hidden views, simulated sleep/wake
+late callbacks, retained views after dismissal, remote-host window visibility,
+hidden views, simulated sleep/wake
 notifications, and the options
 sheet. Preference tests use disposable, isolated domains and a separate writer process
 to check switching from Matrix to Monochrome and back. The pixel check verifies
@@ -85,8 +86,17 @@ that callbacks can arrive after `stopAnimation`; Stillterm explicitly ignores th
 frees frame resources on stop/sleep, and avoids rendering hidden or detached views.
 Window visibility and occlusion flags are not used to gate animation: a remote
 host can display a surface even when its local window reports invisible. Apple's
-forums also track host lifecycle and multi-display regressions. No private
-notification names, process-killing workarounds, or lock-screen changes are used.
+forums also track host lifecycle and multi-display regressions.
+
+On Sonoma, the host can retain full-screen views without calling `stopAnimation`,
+leaving them drawing after dismissal. Stillterm also listens for the undocumented
+`com.apple.screensaver.willstop` distributed notification to stop its own
+full-screen animation and release frame resources. Settings previews keep running;
+sleep/wake cannot restart dismissed instances. This is a best-effort compatibility
+workaround, not a guaranteed API contract. It does not terminate the host or change
+lock-screen behavior, and macOS can still retain inactive view objects.
+The [Aerial minimal template](https://github.com/AerialScreensaver/ScreenSaverMinimal#about-sonoma)
+documents the underlying host issue and dismissal signal.
 [Lifecycle contract](https://developer.apple.com/documentation/screensaver),
 [host reports](https://developer.apple.com/forums/thread/787444).
 
