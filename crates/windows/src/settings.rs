@@ -90,7 +90,8 @@ mod tests {
     fn presets_and_overrides_validate() {
         for theme in ["monochrome", "matrix"] {
             let settings =
-                Settings::parse(&format!("theme = '{theme}'\nseed = 9223372036854775807")).unwrap();
+                Settings::parse(&format!("theme = '{theme}'\nseed = 18446744073709551615"))
+                    .unwrap();
             let roundtrip = Settings::parse(&settings.to_toml().unwrap()).unwrap();
             assert_eq!(roundtrip.theme, theme);
             assert_eq!(roundtrip.seed, settings.seed);
