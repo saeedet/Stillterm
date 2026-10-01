@@ -77,6 +77,8 @@ Automated checks cover invocation parsing, invalid settings, seed round trips,
 GDI pixels, unchanged frames, resize, hidden views, simulated suspend/resume,
 preview input, and parent destruction. A separate process test launches the actual
 `.scr` in a disposable preview host without changing your selected screensaver.
+Settings-window tests use a temporary preferences folder to check theme switching
+across processes and Cancel without touching your saved settings.
 
 Manual Windows checklist:
 

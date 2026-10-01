@@ -9,6 +9,16 @@ use windows_sys::Win32::UI::{
     Input::KeyboardAndMouse::{EnableWindow, SetFocus},
 };
 
+struct UiFont(HFONT);
+impl Drop for UiFont {
+    fn drop(&mut self) {
+        // SAFETY: the options window and all its controls are destroyed first.
+        unsafe {
+            DeleteObject(self.0);
+        }
+    }
+}
+
 struct Form {
     theme: HWND,
     fields: Vec<HWND>,
@@ -29,12 +39,12 @@ fn save(settings: &Settings) -> Result<(), String> {
     let directory = path.parent().ok_or("Invalid settings location")?;
     std::fs::create_dir_all(directory).map_err(|e| e.to_string())?;
     let temp = path.with_extension(format!("{}.tmp", std::process::id()));
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temp)
+        .map_err(|e| e.to_string())?;
     let result = (|| {
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp)
-            .map_err(|e| e.to_string())?;
         file.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
         file.sync_all().map_err(|e| e.to_string())?;
         drop(file);
@@ -200,6 +210,25 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
         } else {
             null_mut()
         };
+        let font = UiFont(CreateFontW(
+            -px(14),
+            0,
+            0,
+            0,
+            FW_NORMAL as i32,
+            0,
+            0,
+            0,
+            DEFAULT_CHARSET as u32,
+            OUT_DEFAULT_PRECIS as u32,
+            CLIP_DEFAULT_PRECIS as u32,
+            ANTIALIASED_QUALITY as u32,
+            DEFAULT_PITCH as u32,
+            wide("Segoe UI").as_ptr(),
+        ));
+        if font.0.is_null() {
+            return Err("Cannot create settings font".into());
+        }
         let instance = GetModuleHandleW(null());
         let class = wide("Stillterm.Options");
         let wc = WNDCLASSW {
@@ -262,12 +291,7 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
                 if handle.is_null() {
                     return Err("Cannot create settings control".into());
                 }
-                SendMessageW(
-                    handle,
-                    WM_SETFONT,
-                    GetStockObject(DEFAULT_GUI_FONT) as usize,
-                    1,
-                );
+                SendMessageW(handle, WM_SETFONT, font.0 as usize, 1);
                 Ok(handle)
             };
             let initial_error = settings.as_ref().err().cloned();

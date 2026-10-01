@@ -20,6 +20,7 @@ public static class StilltermPreviewTest {
     [DllImport("user32.dll")] static extern bool TranslateMessage(ref Msg msg);
     [DllImport("user32.dll")] static extern IntPtr DispatchMessageW(ref Msg msg);
     [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hwnd, uint command);
+    [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr hwnd, int id);
     [DllImport("user32.dll")] public static extern IntPtr SendMessageW(IntPtr hwnd, uint msg, UIntPtr w, IntPtr l);
     [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hwnd, out Rect rect);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int w, int h, uint flags);
@@ -65,4 +66,62 @@ try {
         if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
         $process.Dispose()
     }
+}
+
+# Keep settings checks isolated from the runner/user's preferences.
+$testData = Join-Path ([System.IO.Path]::GetTempPath()) ("stillterm-" + [guid]::NewGuid())
+New-Item -ItemType Directory $testData | Out-Null
+try {
+    foreach ($selection in @(1, 0)) {
+        $start = [System.Diagnostics.ProcessStartInfo]::new($binary, '/c')
+        $start.UseShellExecute = $false
+        $start.Environment['APPDATA'] = $testData
+        $process = [System.Diagnostics.Process]::Start($start)
+        try {
+            [StilltermPreviewTest]::Pump(1000)
+            $process.Refresh()
+            $window = $process.MainWindowHandle
+            if ($window -eq [IntPtr]::Zero) { throw 'Settings window did not open' }
+            $combo = [StilltermPreviewTest]::GetDlgItem($window, 10)
+            if ($selection -eq 0 -and [StilltermPreviewTest]::SendMessageW($combo, 0x0147, [UIntPtr]::Zero, [IntPtr]::Zero).ToInt64() -ne 1) {
+                throw 'Saved Matrix theme did not reload in a new process'
+            }
+            [StilltermPreviewTest]::SendMessageW($combo, 0x014E, [UIntPtr]$selection, [IntPtr]::Zero) | Out-Null
+            [StilltermPreviewTest]::SendMessageW($window, 0x0111, [UIntPtr]65546, $combo) | Out-Null
+            [StilltermPreviewTest]::SendMessageW($window, 0x0111, [UIntPtr]1, [IntPtr]::Zero) | Out-Null
+            [StilltermPreviewTest]::Pump(300)
+            if (-not $process.WaitForExit(5000)) { throw 'Saving valid settings did not close the window' }
+            $saved = Get-Content (Join-Path $testData 'Stillterm/screensaver.toml') -Raw
+            $expected = if ($selection -eq 1) { 'matrix' } else { 'monochrome' }
+            if (-not $saved.Contains('theme = "' + $expected + '"')) { throw 'Theme was not persisted' }
+        } finally {
+            if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
+            $process.Dispose()
+        }
+    }
+    $start = [System.Diagnostics.ProcessStartInfo]::new($binary, '/c')
+    $start.UseShellExecute = $false
+    $start.Environment['APPDATA'] = $testData
+    $process = [System.Diagnostics.Process]::Start($start)
+    try {
+        [StilltermPreviewTest]::Pump(1000)
+        $process.Refresh()
+        $window = $process.MainWindowHandle
+        if ($window -eq [IntPtr]::Zero) { throw 'Settings did not reopen' }
+        $combo = [StilltermPreviewTest]::GetDlgItem($window, 10)
+        if ([StilltermPreviewTest]::SendMessageW($combo, 0x0147, [UIntPtr]::Zero, [IntPtr]::Zero).ToInt64() -ne 0) {
+            throw 'Saved Monochrome theme did not reload'
+        }
+        [StilltermPreviewTest]::SendMessageW($combo, 0x014E, [UIntPtr]1, [IntPtr]::Zero) | Out-Null
+        [StilltermPreviewTest]::SendMessageW($window, 0x0111, [UIntPtr]2, [IntPtr]::Zero) | Out-Null
+        [StilltermPreviewTest]::Pump(300)
+        if (-not $process.WaitForExit(5000)) { throw 'Cancel did not close settings' }
+        if ((Get-Content (Join-Path $testData 'Stillterm/screensaver.toml') -Raw) -ne $saved) { throw 'Cancel changed preferences' }
+    } finally {
+        if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
+        $process.Dispose()
+    }
+    Write-Output 'PASS settings save, cross-process theme switching, and cancel'
+} finally {
+    Remove-Item -Recurse -Force $testData
 }
