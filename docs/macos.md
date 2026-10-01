@@ -108,6 +108,9 @@ documents the underlying host issue and dismissal signal.
 
 ## Public distribution
 
+Paid signing, notarization, and binary publishing are deferred while platform
+development continues. They are not required to build from source or contribute.
+
 Local builds are ad-hoc signed. They are suitable for development, not a substitute
 for Developer ID signing and notarization. Do not remove quarantine or disable
 Gatekeeper to distribute an unnotarized download.

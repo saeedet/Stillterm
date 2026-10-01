@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/engine", "crates/terminal", "crates/macos-bridge"]
+members = ["crates/engine", "crates/terminal", "crates/macos-bridge", "crates/windows"]
 default-members = ["crates/terminal"]
 resolver = "3"
 
