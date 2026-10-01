@@ -1,7 +1,8 @@
 # Platform support
 
-The terminal application and a macOS screensaver source-build preview are implemented.
-Windows and Omarchy native integration remain planned.
+The terminal application and macOS/Windows screensaver development builds are
+implemented. Omarchy native integration remains planned. Paid signing and public
+binary publishing are deferred; source development does not require them.
 Local validation used macOS 14.6.1 on Apple M3. Rust tests and PTY lifecycle checks
 passed there; Windows/Linux compilation checks and native CI complement this but
 do not replace interactive testing on those systems.
@@ -42,14 +43,16 @@ A `.scr` is a Windows executable implementing screensaver behavior. The required
 user-facing modes are `/s` (fullscreen), `/c` (configuration), and `/p <HWND>`
 (embedded preview). [Microsoft modes](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms686421%28v%3Dvs.85%29).
 
-Plan: a separate Rust Win32 application, initially with buffered GDI text. Parse
-case/separator variants and optional parent handles, and default bare invocation
-to configuration. Preview renders into a validated parent window; it must not
-behave like fullscreen input dismissal. The conventional screen saver library is
-a reference for window lifecycle and resources, rather than a dependency of the
-engine. [Microsoft contract](https://learn.microsoft.com/en-us/windows/win32/lwef/screen-saver-library).
+Implemented: a separate Rust Win32 application with buffered GDI text, theme and
+visual settings, one full-screen window per monitor, and an embedded child preview.
+It parses case/separator variants and optional parent handles; bare invocation
+opens settings. Preview validates its parent and ignores fullscreen input dismissal.
+Windows API calls stay in the adapter; the conventional screen saver library is a
+reference for lifecycle behavior rather than an engine dependency.
+See [Windows setup and validation](windows.md). [Microsoft contract](https://learn.microsoft.com/en-us/windows/win32/lwef/screen-saver-library).
 
-Acceptance: all invocation modes, parent destruction, invalid handles, monitor
+Interactive acceptance remains pending: all invocation modes, parent destruction,
+invalid handles, monitor
 changes, mixed DPI, input dismissal, Windows resume-authentication settings, and
 install/uninstall on a clean system. Keep authentication with Windows. Evaluate
 code signing before public binary distribution.

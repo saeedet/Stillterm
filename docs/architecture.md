@@ -1,6 +1,6 @@
 # Architecture
 
-Stillterm has three crates. The dependency flows from presentation to simulation:
+Stillterm has four crates. The dependency flows from presentation to simulation:
 
 ```text
 stillterm (CLI, timing, configuration files, terminal renderer)
@@ -10,7 +10,10 @@ macOS ScreenSaverView (Objective-C, Core Text, native preferences)
     └── stillterm-macos-bridge (owned C handle, copied frames, panic containment)
         └── stillterm-engine
 
-Future Windows / Linux adapters
+stillterm-windows (.scr modes, Win32 windows, GDI, native preferences)
+    └── stillterm-engine
+
+Future Linux adapter
     └── stillterm-engine
 ```
 
@@ -94,3 +97,12 @@ code belongs in its own adapter crate, with documented invariants.
 No universal renderer trait or plug-in loader is needed yet. Effects are ordinary
 Rust implementations compiled into the program. Runtime effect discovery and
 a shared native text renderer can follow actual requirements.
+
+## Windows boundary
+
+`stillterm-windows` keeps mode parsing and settings in a safe, platform-independent
+library. Its executable isolates Win32 calls under `native`. Each monitor or preview
+owns an engine, fixed-step clock, and GDI back buffer. Changed cells repaint offscreen;
+window timers schedule presentation and the message loop blocks between events.
+Boxed state outlives its windows, and callbacks contain unwind panics. Windows
+controls idle activation and authentication. See [Windows behavior](windows.md).

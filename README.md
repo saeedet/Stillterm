@@ -11,8 +11,9 @@ It has no background service or browser runtime.
 *Engine snapshot: seed 42, four seconds, 96×28 cells. Font and brightness vary by
 terminal. An animation recording is planned for the first release.*
 
-**Status:** Terminal application and a macOS screensaver source-build preview.
-Windows and Linux native integration are planned. Stillterm does not lock your session.
+**Status:** Terminal application plus macOS and Windows screensaver development
+builds. Linux native integration is planned. Paid signing and public binary releases
+are deferred while development continues. Stillterm does not lock your session.
 
 ## Install
 
@@ -46,6 +47,13 @@ options panel. Local installed-screensaver testing passed on Apple M3 with macOS
 14.6.1, including theme switching, multiple displays, sleep/wake, and cleanup after
 dismissal. Signed, notarized downloads and broader compatibility testing are still
 pending. See [macOS setup and distribution](docs/macos.md).
+
+## Windows screensaver
+
+On Windows, run `./scripts/build-windows.ps1` from PowerShell to build
+`target/windows/Stillterm.scr`. It supports full screen, native settings, and the
+embedded Windows preview. This unsigned development build still needs interactive
+Windows testing. See [setup and the test checklist](docs/windows.md).
 
 ## Run
 
@@ -113,7 +121,7 @@ the monochrome theme otherwise uses a detected grayscale or basic-color palette.
 | Windows terminal | Cross-checked for compilation; native CI configured; interactive testing pending |
 | Linux terminal | Cross-checked for compilation; native CI and PTY checks configured |
 | macOS `.saver` | Installed screensaver tested on Apple M3 / macOS 14.6.1; Intel slice checked under Rosetta; signed downloads pending |
-| Windows `.scr` | Planned — Milestone 3 |
+| Windows `.scr` | x64 development build with native settings and embedded preview; interactive testing pending |
 | Omarchy / Hyprland idle integration | Planned — Milestone 4; version-specific integration |
 
 [CI](https://github.com/saeedet/Stillterm/actions) checks the workspace and macOS
