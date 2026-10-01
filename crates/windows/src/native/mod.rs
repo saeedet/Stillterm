@@ -513,12 +513,22 @@ mod tests {
             let initial_size = state.engine.as_ref().unwrap().size();
             SendMessageW(child, WM_KEYDOWN, 27, 0);
             SendMessageW(child, WM_LBUTTONDOWN, 0, 0);
-            let mut message: MSG = std::mem::zeroed();
-            assert_eq!(
-                PeekMessageW(&mut message, null_mut(), WM_QUIT, WM_QUIT, PM_REMOVE),
-                0,
-                "Preview input must not exit the saver process"
-            );
+            // WM_QUIT is synthesized at low priority. Drain ordinary messages
+            // as the real loop does; filtering only for WM_QUIT can miss it.
+            let drain = || {
+                let mut message: MSG = std::mem::zeroed();
+                let mut quit = false;
+                while PeekMessageW(&mut message, null_mut(), 0, 0, PM_REMOVE) != 0 {
+                    if message.message == WM_QUIT {
+                        quit = true;
+                    } else {
+                        TranslateMessage(&message);
+                        DispatchMessageW(&message);
+                    }
+                }
+                quit
+            };
+            assert!(!drain(), "Preview input must not exit the saver process");
             SetWindowPos(
                 parent,
                 null_mut(),
@@ -542,11 +552,7 @@ mod tests {
             DestroyWindow(parent);
             assert_eq!(IsWindow(child), 0);
             assert!(state.engine.is_none());
-            assert_ne!(
-                PeekMessageW(&mut message, null_mut(), WM_QUIT, WM_QUIT, PM_REMOVE),
-                0,
-                "Parent destruction must end the preview loop"
-            );
+            assert!(drain(), "Parent destruction must end the preview loop");
             UnregisterClassW(class.as_ptr(), instance);
         }
     }

@@ -37,6 +37,8 @@ jobs:
 
   test:
     name: Test (${{ matrix.os }}, Rust ${{ matrix.rust }})
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
