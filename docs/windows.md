@@ -5,7 +5,9 @@ GDI drawing. It includes Monochrome and Matrix themes, a settings window, and th
 embedded preview expected by Windows Screen Saver Settings.
 
 This is an unsigned x64 development build targeting Windows 10 version 1703 or
-newer and Windows 11. Interactive validation on a physical Windows PC is pending;
+newer and Windows 11. The manual checklist passed on Windows 10 on 2026-10-02,
+as reported by the tester. The exact OS build and display configuration were not
+recorded. Windows 11 retesting remains pending after the settings-window fix;
 CI checks do not establish compatibility with every display configuration.
 
 ## Build and install for testing

@@ -66,13 +66,22 @@ to check switching from Matrix to Monochrome and back. The pixel check verifies
 that the Matrix theme produces green glyphs through Core Text. A native frame is
 saved at `target/macos/preview.png` for inspection.
 
-Local validation completed on 2026-10-01: Apple M3, macOS 14.6.1 (23G93),
+Local functional validation on 2026-10-01: Apple M3, macOS 14.6.1 (23G93),
 Xcode 15.4, Rust 1.88.0. Installed-screensaver checks covered installation,
 System Settings and full-screen previews, options and theme switching, idle
 activation, two physical displays, sleep/wake, and repeated dismissal. After the
 final repeated-preview test on build 4, the helper measured 0.0% CPU across three
 samples, with logs confirming that retained instances stopped rendering. This is
 an after-dismissal measurement, not an active-rendering performance claim.
+
+A longer-session check on 2026-10-02 found a 673 MiB idle host footprint despite
+0% CPU and matching animation start/stop events. `vmmap` attributed about 595 MiB
+to IOSurface display buffers and 41 MiB to Core Animation; ordinary heap allocations
+were about 8 MiB. Most retained writable memory was reported in the swapped category.
+This is consistent with the legacy host retaining drawing surfaces after dismissal.
+Stopping animation does not establish that the host released those surfaces.
+**Long-session memory cleanup remains unresolved.** Restarting the idle helper
+clears the current allocation but is not a durable fix or an automatic product behavior.
 
 The bundle contains arm64 and x86_64 code. Both slices passed the native host
 checks locally (the Intel slice under Rosetta); physical Intel hardware remains

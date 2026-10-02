@@ -31,7 +31,8 @@ current patch has the same bugs. [Apple discussion](https://developer.apple.com/
 
 Local acceptance completed on Apple M3 / macOS 14.6.1: installation, preview,
 configuration and theme switching, two displays, sleep/wake, and repeated
-dismissal. Build 4's full-screen helper returned to 0.0% CPU after dismissal.
+dismissal. Build 4's full-screen helper returned to 0.0% CPU after dismissal,
+but longer use exposed retained host graphics memory; memory cleanup remains open.
 Automated checks cover FFI ownership, panic containment, and both bundle slices
 (the Intel slice locally under Rosetta). Physical Intel hardware, additional
 macOS versions, and clean-Mac distribution checks remain pending; see the
@@ -51,8 +52,10 @@ Windows API calls stay in the adapter; the conventional screen saver library is 
 reference for lifecycle behavior rather than an engine dependency.
 See [Windows setup and validation](windows.md). [Microsoft contract](https://learn.microsoft.com/en-us/windows/win32/lwef/screen-saver-library).
 
-Interactive acceptance remains pending: all invocation modes, parent destruction,
-invalid handles, monitor
+The tester reported the manual checklist passing on Windows 10 on 2026-10-02;
+the exact OS build and display configuration were not recorded. Windows 11 retesting
+remains pending after the settings-window fix. Acceptance covers invocation modes,
+parent destruction, invalid handles, monitor
 changes, mixed DPI, input dismissal, Windows resume-authentication settings, and
 install/uninstall on a clean system. Keep authentication with Windows. Evaluate
 code signing before public binary distribution.
