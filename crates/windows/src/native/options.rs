@@ -22,6 +22,7 @@ impl Drop for UiFont {
 struct Form {
     theme: HWND,
     fields: Vec<HWND>,
+    running: bool,
 }
 const LABELS: [&str; 7] = [
     "Speed (0.1–4)",
@@ -186,7 +187,10 @@ unsafe fn message(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> LRESULT {
                 0
             }
             WM_DESTROY => {
-                PostQuitMessage(0);
+                // Failed creation may destroy a partial window before a retry.
+                if !form.is_null() && (*form).running {
+                    PostQuitMessage(0);
+                }
                 0
             }
             WM_NCDESTROY => {
@@ -202,14 +206,31 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
     // SAFETY: controls, their parent, and Form stay on this thread. The owner is
     // validated before use and reenabled on every return from the modal loop.
     unsafe {
-        SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
-        let scale = GetDpiForSystem().max(96) as i32;
-        let px = |n: i32| n * scale / 96;
-        let owner = if IsWindow(owner) != 0 {
+        let mut owner = if IsWindow(owner) != 0 {
             owner
         } else {
             null_mut()
         };
+        // Control Panel can have a different awareness context from this process.
+        // Match its window tree when creating an owned settings window.
+        let context = if owner.is_null() {
+            DPI_AWARENESS_CONTEXT_SYSTEM_AWARE
+        } else {
+            GetWindowDpiAwarenessContext(owner)
+        };
+        if SetThreadDpiAwarenessContext(context).is_null() {
+            return Err(format!(
+                "Cannot configure settings display scaling: {}",
+                std::io::Error::last_os_error()
+            ));
+        }
+        let scale = if owner.is_null() {
+            GetDpiForSystem()
+        } else {
+            GetDpiForWindow(owner)
+        }
+        .max(96) as i32;
+        let px = |n: i32| n * scale / 96;
         let font = UiFont(CreateFontW(
             -px(14),
             0,
@@ -245,8 +266,9 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
         let mut form = Box::new(Form {
             theme: null_mut(),
             fields: vec![],
+            running: false,
         });
-        let hwnd = CreateWindowExW(
+        let mut hwnd = CreateWindowExW(
             WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT,
             class.as_ptr(),
             wide("Stillterm Settings").as_ptr(),
@@ -260,9 +282,29 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
             instance,
             (&mut *form as *mut Form).cast(),
         );
+        if hwnd.is_null() && !owner.is_null() {
+            // A foreign owner can disappear or reject attachment. Settings can
+            // still work as an independent window; do not disable that owner.
+            owner = null_mut();
+            hwnd = CreateWindowExW(
+                WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT,
+                class.as_ptr(),
+                wide("Stillterm Settings").as_ptr(),
+                WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                px(530),
+                px(430),
+                owner,
+                null_mut(),
+                instance,
+                (&mut *form as *mut Form).cast(),
+            );
+        }
         if hwnd.is_null() {
+            let error = std::io::Error::last_os_error();
             UnregisterClassW(class.as_ptr(), instance);
-            return Err("Cannot create settings window".into());
+            return Err(format!("Cannot create settings window: {error}"));
         }
         let result = (|| {
             let control = |kind: &str,
@@ -353,6 +395,7 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
                 30,
             )?;
             control("BUTTON", "Cancel", WS_TABSTOP, 2, 410, 330, 85, 30)?;
+            form.running = true;
             if !owner.is_null() {
                 EnableWindow(owner, 0);
             }

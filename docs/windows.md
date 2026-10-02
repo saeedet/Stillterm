@@ -78,7 +78,10 @@ GDI pixels, unchanged frames, resize, hidden views, simulated suspend/resume,
 preview input, and parent destruction. A separate process test launches the actual
 `.scr` in a disposable preview host without changing your selected screensaver.
 Settings-window tests use a temporary preferences folder to check theme switching
-across processes and Cancel without touching your saved settings.
+across processes and Cancel without touching your saved settings. They also open
+Settings with a separate owner window, as Control Panel does, across Windows DPI
+awareness modes. Settings matches the owner's scaling context and can open
+independently if Windows rejects the owner relationship.
 
 Manual Windows checklist:
 
