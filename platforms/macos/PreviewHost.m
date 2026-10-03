@@ -25,6 +25,17 @@ static void pump(NSTimeInterval seconds) {
         }
     }
 }
+// Native timers can be coalesced on busy/headless CI machines. Wait for the
+// observable state with a deadline rather than assuming a callback in 100 ms.
+static void waitFor(BOOL (^condition)(void), NSString *message) {
+    CFTimeInterval deadline = NSProcessInfo.processInfo.systemUptime + 2.0;
+    while (!condition() && NSProcessInfo.processInfo.systemUptime < deadline) pump(0.02);
+    require(condition(), message);
+}
+static void waitForFrame(ScreenSaverView *view) {
+    waitFor(^BOOL { return [(NSData *)[view valueForKey:@"cells"] length] > 0; },
+        @"Active instance must receive an animation callback within two seconds");
+}
 static NSBitmapImageRep *snapshot(NSView *view) {
     NSBitmapImageRep *rep = [view bitmapImageRepForCachingDisplayInRect:view.bounds];
     [view cacheDisplayInRect:view.bounds toBitmapImageRep:rep];
@@ -123,7 +134,7 @@ int main(int argc, const char *argv[]) {
         require(visiblePixels(snapshot(view), YES) > 100, @"Remote-hosted frame must contain green glyphs");
         NSData *before = [[view valueForKey:@"cells"] copy];
         pump(0.15);
-        require(![before isEqual:[view valueForKey:@"cells"]], @"Animation must advance");
+        waitFor(^BOOL { return ![before isEqual:[view valueForKey:@"cells"]]; }, @"Animation must advance");
         [view setFrameSize:NSMakeSize(320, 180)]; pump(0.1);
         require(visiblePixels(snapshot(view), YES) > 10, @"Resized preview must render");
         [view setFrameSize:NSZeroSize]; [view animateOneFrame];
@@ -142,14 +153,14 @@ int main(int argc, const char *argv[]) {
             pump(0.01);
             require(canvas == nil, @"Stop destroys the drawing view while the host retains its parent");
         }
-        [view startAnimation]; pump(0.1);
+        [view startAnimation]; waitForFrame(view);
         ScreenSaverView *second = [[viewClass alloc] initWithFrame:NSMakeRect(0, 0, 200, 120) isPreview:NO];
-        [window.contentView addSubview:second]; [second startAnimation]; pump(0.1);
+        [window.contentView addSubview:second]; [second startAnimation]; waitForFrame(second);
         [view stopAnimation];
         require([second valueForKey:@"cells"] != nil, @"A second instance owns independent resources");
-        [view startAnimation]; pump(0.1);
+        [view startAnimation]; waitForFrame(view);
         ScreenSaverView *third = [[viewClass alloc] initWithFrame:NSMakeRect(200, 0, 200, 120) isPreview:NO];
-        [window.contentView addSubview:third]; [third startAnimation]; pump(0.1);
+        [window.contentView addSubview:third]; [third startAnimation]; waitForFrame(third);
         require([third valueForKey:@"cells"] != nil, @"Both full-screen instances start rendering");
         NSNotification *dismissal = [NSNotification notificationWithName:@"com.apple.screensaver.willstop" object:nil];
         // Reproduce a host retaining multiple attached views and omitting stopAnimation.
@@ -170,7 +181,7 @@ int main(int argc, const char *argv[]) {
             require(!retained.isAnimating && [retained valueForKey:@"cells"] == nil && [retained valueForKey:@"canvas"] == nil,
                 @"Wake must not revive dismissed instances");
         }
-        [second startAnimation]; pump(0.1);
+        [second startAnimation]; waitForFrame(second);
         require(second.isAnimating && [second valueForKey:@"cells"] != nil, @"An explicit host restart resumes rendering");
         require([third valueForKey:@"cells"] == nil, @"Restarting one instance leaves older instances stopped");
         [second stopAnimation]; [second removeFromSuperview]; [third removeFromSuperview];
@@ -179,7 +190,7 @@ int main(int argc, const char *argv[]) {
         require([view valueForKey:@"cells"] == nil && [view valueForKey:@"canvas"] == nil, @"Sleep releases buffers and drawing surface");
         [NSWorkspace.sharedWorkspace.notificationCenter postNotificationName:NSWorkspaceDidWakeNotification object:nil];
         pump(0.1);
-        require([view valueForKey:@"cells"] != nil, @"Wake restarts rendering while active");
+        waitForFrame(view);
         window.contentView.hidden = YES; [view animateOneFrame];
         require([view valueForKey:@"cells"] == nil && [view valueForKey:@"canvas"] == nil, @"Hidden view releases buffers and drawing surface");
         window.contentView.hidden = NO; pump(0.1);
@@ -192,7 +203,7 @@ int main(int argc, const char *argv[]) {
                 writeToFile:[path stringByAppendingString:@"-options.png"] atomically:YES];
         }
         [window endSheet:sheet]; [sheet orderOut:nil];
-        [view startAnimation]; pump(0.1);
+        [view startAnimation]; waitForFrame(view);
         struct rusage begin, end; getrusage(RUSAGE_SELF, &begin); CFTimeInterval start = NSProcessInfo.processInfo.systemUptime;
         pump(2.0); getrusage(RUSAGE_SELF, &end);
         double cpu = (end.ru_utime.tv_sec - begin.ru_utime.tv_sec) + (end.ru_utime.tv_usec - begin.ru_utime.tv_usec) / 1e6

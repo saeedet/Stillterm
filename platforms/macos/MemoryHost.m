@@ -51,7 +51,7 @@ int main(int argc, const char *argv[]) {
                 // Give each retained instance its own backing layer, as a remote host can.
                 view.wantsLayer = YES;
                 [window.contentView addSubview:view];
-                [view startAnimation]; pump(0.15);
+                [view startAnimation]; [view animateOneFrame]; pump(0.15);
                 require([view valueForKey:@"cells"] != nil, @"Active retained-view test must render");
                 [view stopAnimation]; [view animateOneFrame];
                 require([view valueForKey:@"cells"] == nil && !view.isAnimating, @"Stopped view stays idle");
