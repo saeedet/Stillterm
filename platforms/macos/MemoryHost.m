@@ -60,15 +60,21 @@ int main(int argc, const char *argv[]) {
             pump(0.1);
             double footprint = footprintMiB();
             fprintf(stderr, "Retained views: %d; footprint %.1f MiB\n", i + 1, footprint);
-            if (i == 3) warm = footprint;
+            if (i == 3) {
+                // Core Animation may retire removed surfaces asynchronously.
+                // Compare settled batches, not a transient driver allocation peak.
+                pump(2.0);
+                warm = footprintMiB();
+            }
             if (i > 3) peakGrowth = MAX(peakGrowth, footprint - warm);
         }
-        pump(0.3);
-        fprintf(stderr, "Settled footprint: %.1f MiB; peak growth across 8 additional retained views: %.1f MiB\n",
-            footprintMiB(), peakGrowth);
+        pump(2.0);
+        double settled = footprintMiB();
+        fprintf(stderr, "Settled footprint: %.1f MiB; settled growth: %.1f MiB; transient peak growth: %.1f MiB\n",
+            settled, settled - warm, peakGrowth);
         // Allow AppKit/font caches and graphics-driver variability, but not a full
         // Retina backing surface per stopped instance (~22 MiB at this size).
-        require(peakGrowth < 64, @"Stopped views must not retain a full-size drawing surface each");
+        require(settled - warm < 64, @"Stopped views must not retain a full-size drawing surface each");
         [window orderOut:nil];
         puts("PASS retained-view graphics memory check");
     }

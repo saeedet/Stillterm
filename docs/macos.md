@@ -62,7 +62,9 @@ resizing (including an empty surface), independent instances, repeated start/sto
 late callbacks, retained views after dismissal, remote-host window visibility,
 hidden views, simulated sleep/wake notifications, and the options sheet. A separate
 memory check retains 12 stopped, layer-backed views at 1600×900 points and verifies
-that the process footprint stays bounded after warm-up. These checks run in CI.
+that the process footprint stays bounded after warm-up and a two-second settling
+interval for asynchronous graphics cleanup. Transient peaks are reported separately.
+These checks run in CI.
 Preference tests use disposable, isolated domains and a separate writer process
 to check switching from Matrix to Monochrome and back. The pixel check verifies
 that the Matrix theme produces green glyphs through Core Text. A native frame is
