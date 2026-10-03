@@ -1,7 +1,8 @@
 # Platform support
 
 The terminal application and macOS/Windows screensaver development builds are
-implemented. Omarchy native integration remains planned. Paid signing and public
+implemented. The experimental Hyprland adapter supports manual preview and optional
+Hypridle integration; automatic Omarchy 4 integration remains unsupported. Paid signing and public
 binary publishing are deferred; source development does not require them.
 Local validation used macOS 14.6.1 on Apple M3. Rust tests and PTY lifecycle checks
 passed there; Windows/Linux compilation checks and native CI complement this but
@@ -32,7 +33,9 @@ current patch has the same bugs. [Apple discussion](https://developer.apple.com/
 Local acceptance completed on Apple M3 / macOS 14.6.1: installation, preview,
 configuration and theme switching, two displays, sleep/wake, and repeated
 dismissal. Build 4's full-screen helper returned to 0.0% CPU after dismissal,
-but longer use exposed retained host graphics memory; memory cleanup remains open.
+but longer use exposed retained host graphics memory. Build 5 releases drawing
+surfaces and measured 117 MiB / 0% CPU after three installed previews; longer-session
+and active-rendering performance validation remain open.
 Automated checks cover FFI ownership, panic containment, and both bundle slices
 (the Intel slice locally under Rosetta). Physical Intel hardware, additional
 macOS versions, and clean-Mac distribution checks remain pending; see the
@@ -63,31 +66,22 @@ distribution remain deferred.
 
 ## Omarchy / Hyprland — Milestone 4
 
-Omarchy 4 moved idle handling and locking from Hypridle/Hyprlock into its Quickshell
-desktop shell. An integration that assumes Hypridle everywhere would miss current
-Omarchy installations. [Omarchy 4 release](https://github.com/omacom/omarchy/releases/tag/v4.0.0).
+Implemented: an experimental adapter reusing the Rust CLI in separate Foot windows,
+with per-monitor placement, input dismissal, scoped process cleanup, lock-state
+checks, and exit on display changes. A Python standard-library controller exists
+only while the visualizer runs. It does not add an idle daemon or edit settings.
+See [installation, source pins, automated checks, and acceptance](linux.md).
 
-The current launcher still opens terminal windows on individual monitors for its
-visual screensaver. Reusing Stillterm's terminal renderer is the first integration
-to evaluate. Shell documentation exposes separate visual and lock timers, but a
-stable custom-command substitution point has not been verified.
-[Launcher](https://github.com/omacom/omarchy/blob/quattro/bin/omarchy-launch-screensaver),
-[shell documentation](https://github.com/omacom/omarchy/blob/quattro/docs/omarchy-shell.md).
+Omarchy 4.0.4 (`c668141`) uses Quickshell for idle handling. Its idle service
+hard-codes the visual launcher and cancels the lock timer when the last saver
+window closes, including on failure. Automatic substitution is unsupported;
+Stillterm offers a manual preview path without replacing Omarchy commands.
+[Reviewed idle service](https://github.com/omacom/omarchy/blob/c668141e9c42b13c80c9ca4ea108e11708c5e8a5/shell/plugins/services/idle/Service.qml).
 
-Pin and test a supported Omarchy release before implementing installation. Do not
-overwrite packaged scripts or introduce a second idle daemon. If a standalone
-Wayland surface becomes necessary, isolate it in an adapter while preserving the
-same engine. GNOME and KDE integration remain outside V1.
-
-For standalone Hyprland or older Omarchy installations that use Hypridle, its
-timeout/resume listeners can launch and stop a visualizer while the existing locker
-retains responsibility for authentication and suspend locking.
-[Hypridle](https://wiki.hypr.land/hypr-ecosystem/user/hypridle/).
-
-Acceptance: activity dismissal, all monitors, hotplug, no idle inhibition, lock
-handoff, sleep/wake, crash behavior, and preservation of user settings. A failed
-visualizer must never disable or delay the independent lock schedule. Stop visual
-animation when locking starts; do not draw over a secure lock surface.
+Standalone Hypridle users can add a visual-only listener while preserving their
+independent lock schedule and suspend handling. A renderer failure must not delay
+locking. Physical desktop tests, active resource measurements, and automatic
+Omarchy integration remain outstanding, so Milestone 4 is not complete.
 
 ## Releases
 
@@ -97,5 +91,5 @@ binary with version-specific integration instructions as their milestones land.
 The macOS build includes development disk-image packaging. Release publishing,
 Developer ID signing, and notarization are not automated in CI.
 
-Research reviewed 2026-09-30. Moving branches describe upstream direction;
+Linux research updated 2026-10-03; other platform research reviewed 2026-09-30. Moving branches describe upstream direction;
 adapter implementation must record exact tested versions.

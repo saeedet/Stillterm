@@ -68,6 +68,21 @@ jobs:
           python3 scripts/check-terminal.py --panic-check
           python3 scripts/check-terminal.py --theme matrix
 
+      - name: Check Hyprland launcher lifecycle
+        if: runner.os != 'Windows'
+        run: python3 scripts/check-hyprland.py
+      - name: Package Linux development build
+        if: matrix.os == 'ubuntu-latest' && matrix.rust == '1.88.0'
+        run: scripts/build-linux.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: matrix.os == 'ubuntu-latest' && matrix.rust == '1.88.0'
+        with:
+          name: Stillterm-linux-development
+          path: |
+            target/linux/Stillterm-linux-*-development.tar.gz
+            target/linux/SHA256SUMS.txt
+          retention-days: 14
+
       - name: Check Windows native adapter
         if: runner.os == 'Windows'
         run: cargo clippy -p stillterm-windows --all-targets --locked -- -D warnings

@@ -64,3 +64,11 @@ check script opens an interactive preview with the real options panel. See
 [macOS development and release checks](docs/macos.md). Keep animation rules in Rust
 and native lifecycle/presentation in `platforms/macos`; document every unsafe bridge
 contract. Update both the Rust C layouts and header together.
+
+## Linux integration work
+
+Run `python3 scripts/check-hyprland.py` on macOS or Linux, alongside the terminal
+PTY checks. It uses fake compositor IPC and real isolated child processes; it
+cannot replace on-screen checks. Keep the supported source versions and the
+manual checklist in [the Linux guide](docs/linux.md) current. Do not change a
+desktop's lock schedule to accommodate the visualizer.

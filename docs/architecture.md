@@ -13,8 +13,9 @@ macOS ScreenSaverView (Objective-C, Core Text, native preferences)
 stillterm-windows (.scr modes, Win32 windows, GDI, native preferences)
     └── stillterm-engine
 
-Future Linux adapter
-    └── stillterm-engine
+Hyprland adapter (Python standard library, scoped Foot windows)
+    └── stillterm CLI
+        └── stillterm-engine
 ```
 
 ## Engine
@@ -68,7 +69,10 @@ the screen. The bottom-right cell is reserved to avoid terminal auto-wrap scroll
 Polling waits for input or the next presentation deadline; signal checks are at
 most 50 ms apart while the output device is accepting writes.
 
-There is no mouse capture or job suspension binding. Forced kills, process aborts,
+Ordinary runs do not capture the mouse. The opt-in `--exit-on-input` mode captures
+mouse buttons/scroll and exits on any pressed key; all capture modes are restored
+on cleanup. The desktop adapter handles global pointer movement. There is no job
+suspension binding. Forced kills, process aborts,
 and a terminal disappearing cannot guarantee cleanup. If an external failure
 leaves a Unix terminal unusable, `stty sane` or `reset` can restore it.
 
@@ -108,3 +112,19 @@ owns an engine, fixed-step clock, and GDI back buffer. Changed cells repaint off
 window timers schedule presentation and the message loop blocks between events.
 Boxed state outlives its windows, and callbacks contain unwind panics. Windows
 controls idle activation and authentication. See [Windows behavior](windows.md).
+
+## Linux boundary
+
+`platforms/linux/stillterm-hyprland` is a transient process controller using Python's
+standard library. Reusing Foot and the Rust CLI avoids another rendering stack.
+The controller talks to Hyprland's Unix IPC socket and owns one standalone Foot
+process per non-mirrored monitor. It identifies windows by child PID and app ID,
+sets only their properties, and never executes forwarded CLI arguments as shell
+code. Private session sockets and an advisory lock handle stop and duplicate starts.
+
+Keyboard and mouse-button events go through the Rust CLI. Bounded compositor
+queries handle global pointer movement, focus loss, locking, and layout changes.
+A single child exit or IPC failure tears down the run. The existing idle manager
+owns activation and authentication; the controller does not infer or reschedule
+lock deadlines. Automatic Omarchy 4 substitution is deliberately unsupported until
+that desktop exposes a suitable lifecycle interface. See [Linux limits](linux.md).

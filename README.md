@@ -12,7 +12,7 @@ It has no background service or browser runtime.
 terminal. An animation recording is planned for the first release.*
 
 **Status:** Terminal application plus macOS and Windows screensaver development
-builds. Linux native integration is planned. Paid signing and public binary releases
+builds, plus an experimental Hyprland adapter. Paid signing and public binary releases
 are deferred while development continues. Stillterm does not lock your session.
 
 ## Install
@@ -57,6 +57,14 @@ On Windows, run `./scripts/build-windows.ps1` from PowerShell to build
 embedded Windows preview. The manual checklist passed on Windows 10 and Windows 11.
 Milestone 3 implementation and manual testing are complete. This remains an unsigned
 development build. See [setup and the test checklist](docs/windows.md).
+
+## Linux / Hyprland
+
+An experimental adapter runs Stillterm in one Foot terminal per monitor, with
+input dismissal and cleanup on locking or display changes. Install and try it
+using the [Linux guide](docs/linux.md). Standalone Hypridle integration is optional;
+Omarchy 4.0.4 supports manual preview only because its current idle service has no
+suitable replacement interface. Physical Linux desktop validation remains pending.
 
 ## Run
 
@@ -125,10 +133,12 @@ the monochrome theme otherwise uses a detected grayscale or basic-color palette.
 | Linux terminal | Cross-checked for compilation; native CI and PTY checks configured |
 | macOS `.saver` | Installed screensaver tested on Apple M3 / macOS 14.6.1; Intel slice checked under Rosetta; signed downloads pending |
 | Windows `.scr` | Manual checklist passed on Windows 10 and Windows 11; unsigned x64 build |
-| Omarchy / Hyprland idle integration | Planned — Milestone 4; version-specific integration |
+| Hyprland / Hypridle | Experimental adapter; automated lifecycle tests; desktop acceptance pending |
+| Omarchy 4.0.4 | Manual preview path; automatic idle replacement unsupported |
 
 [CI](https://github.com/saeedet/Stillterm/actions) checks the workspace and macOS
-bundle. The terminal executable does not provide native screensaver integration.
+bundle, plus Linux launcher and terminal lifecycle tests. The optional Linux
+adapter provides desktop integration around the terminal executable.
 See [platform research and acceptance checks](docs/platform-support.md).
 
 ## How it works
