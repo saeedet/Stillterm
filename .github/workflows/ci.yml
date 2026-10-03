@@ -74,7 +74,7 @@ jobs:
       - name: Package Linux development build
         if: matrix.os == 'ubuntu-latest' && matrix.rust == '1.88.0'
         run: scripts/build-linux.sh
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: matrix.os == 'ubuntu-latest' && matrix.rust == '1.88.0'
         with:
           name: Stillterm-linux-development
@@ -92,7 +92,7 @@ jobs:
         run: |
           ./scripts/build-windows.ps1
           ./scripts/check-windows.ps1
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: runner.os == 'Windows'
         with:
           name: Stillterm-windows-development
@@ -117,7 +117,7 @@ jobs:
       - run: scripts/check-macos.sh
       - name: Archive development bundle
         run: ditto -c -k --sequesterRsrc --keepParent target/macos/Stillterm.saver target/macos/Stillterm-development.zip
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: Stillterm-macos-development
           path: target/macos/Stillterm-development.zip
