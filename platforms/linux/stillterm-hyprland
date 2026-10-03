@@ -1,0 +1,306 @@
+#!/usr/bin/env python3
+"""Run Stillterm in owned Foot windows; leave idle scheduling and locking to the desktop."""
+
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import select
+import shutil
+import signal
+import socket
+import stat
+import subprocess
+import sys
+import tempfile
+import time
+
+APP_ID = "org.stillterm.screensaver"
+POLL_SECONDS = 0.25
+FOOT_CONFIG = """[main]
+font=monospace:size=18
+pad=0x0
+[colors-dark]
+background=000000
+foreground=ffffff
+[cursor]
+blink=no
+[mouse]
+hide-when-typing=yes
+"""
+
+
+class IntegrationError(Exception):
+    pass
+
+
+class Hyprland:
+    def __init__(self, runtime, signature):
+        self.path = runtime / "hypr" / signature / ".socket.sock"
+        self.lua = None
+
+    def request(self, command):
+        with socket.socket(socket.AF_UNIX) as connection:
+            connection.settimeout(1)
+            connection.connect(str(self.path))
+            connection.sendall(command.encode())
+            reply = bytearray()
+            while True:
+                chunk = connection.recv(65536)
+                if not chunk:
+                    return reply.decode().strip()
+                reply.extend(chunk)
+                if len(reply) > 4 * 1024 * 1024:
+                    raise IntegrationError("Hyprland response exceeds 4 MiB")
+
+    def query(self, name):
+        return json.loads(self.request("j/" + name))
+
+    def locked(self):
+        reply = self.query("locked")
+        value = reply.get("locked") if isinstance(reply, dict) else None
+        if not isinstance(value, bool):
+            raise IntegrationError("Hyprland must provide a valid session lock state")
+        return value
+
+    def monitors(self):
+        monitors = self.query("monitors")
+        if not isinstance(monitors, list):
+            raise IntegrationError("Invalid Hyprland monitor response")
+        active = []
+        for monitor in monitors:
+            if not isinstance(monitor, dict):
+                raise IntegrationError("Invalid Hyprland monitor entry")
+            if monitor.get("disabled") or monitor.get("mirrorOf", "none") != "none":
+                continue
+            name = monitor.get("name", "")
+            if name == "FALLBACK" or not re.fullmatch(r"[A-Za-z0-9_.:-]+", name):
+                raise IntegrationError("A physical monitor with a supported connector name is required")
+            if not monitor.get("dpmsStatus", True):
+                raise IntegrationError("A display is powered off")
+            active.append(monitor)
+        if not active:
+            raise IntegrationError("No active physical monitors")
+        return active
+
+    def dispatch(self, lua, legacy):
+        if self.lua is None:
+            reply = self.request("/eval return")
+            if reply == "ok":
+                self.lua = True
+            elif "only supported with the lua" in reply:
+                self.lua = False
+            else:
+                raise IntegrationError("Could not identify Hyprland's configuration API: " + reply)
+        reply = self.request("/dispatch " + (lua if self.lua else legacy))
+        if reply != "ok":
+            raise IntegrationError("Hyprland rejected window configuration: " + reply)
+
+    def place(self, address, monitor):
+        if not re.fullmatch(r"0x[0-9a-fA-F]+", address):
+            raise IntegrationError("Invalid Hyprland window address")
+        selector = "address:" + address
+        window = json.dumps(selector)
+        # IDLEINHIBIT_NONE is 0 in Hyprland 0.56.2. set_prop expects an integer
+        # string, not the 'none' keyword accepted by window rules.
+        self.dispatch(
+            f'hl.dsp.window.set_prop({{window={window}, prop="idle_inhibit", value="0"}})',
+            f"setprop {selector} idle_inhibit 0",
+        )
+        self.dispatch(
+            f'hl.dsp.window.move({{window={window}, monitor={json.dumps(monitor)}, follow=false}})',
+            f"movewindow mon:{monitor},{selector}",
+        )
+
+
+def environment():
+    runtime = os.environ.get("XDG_RUNTIME_DIR", "")
+    signature = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", "")
+    if not runtime or not Path(runtime).is_absolute() or not re.fullmatch(r"[A-Za-z0-9_-]+", signature):
+        raise IntegrationError("Run inside a Hyprland session with XDG_RUNTIME_DIR set")
+    path = Path(runtime)
+    info = path.stat()
+    if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
+        raise IntegrationError("XDG_RUNTIME_DIR must be private and owned by this user")
+    return path, signature
+
+
+def control_directory(runtime, signature):
+    suffix = hashlib.sha256(signature.encode()).hexdigest()[:12]
+    directory = runtime / ("stillterm-" + suffix)
+    directory.mkdir(mode=0o700, exist_ok=True)
+    info = directory.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
+        raise IntegrationError("Stillterm's runtime directory must be private and owned by this user")
+    return directory
+
+
+def monitor_layout(monitors):
+    keys = ("name", "id", "width", "height", "x", "y", "scale", "transform")
+    return sorted(tuple(monitor.get(key) for key in keys) for monitor in monitors)
+
+
+def dependencies():
+    programs = {name: shutil.which(name) for name in ("foot", "stillterm")}
+    missing = [name for name, path in programs.items() if path is None]
+    if missing:
+        raise IntegrationError("Install these commands on PATH: " + ", ".join(missing))
+    help_text = subprocess.run([programs["stillterm"], "--help"], capture_output=True, text=True, timeout=8, check=True).stdout
+    if "--exit-on-input" not in help_text:
+        raise IntegrationError("Rebuild Stillterm: this installation lacks --exit-on-input")
+    return programs
+
+
+class Run:
+    def __init__(self, compositor, control, programs, renderer_args):
+        self.compositor = compositor
+        self.control = control
+        self.programs = programs
+        self.renderer_args = renderer_args
+        self.children = []
+        self.stopping = False
+
+    def request_stop(self, *_):
+        self.stopping = True
+
+    def stop_requested(self, delay=0):
+        if select.select([self.control], [], [], delay)[0]:
+            # Only the owner can reach this private socket. Connecting is enough
+            # to request stop, so a stalled sender can never block cleanup.
+            connection, _ = self.control.accept()
+            connection.close()
+            self.stopping = True
+        return self.stopping
+
+    def children_exited(self):
+        return any(child.poll() is not None for child in self.children)
+
+    def cleanup(self):
+        for child in self.children:
+            if child.poll() is None:
+                child.terminate()
+        deadline = time.monotonic() + 1
+        for child in self.children:
+            try:
+                child.wait(timeout=max(0.01, deadline - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait()
+
+    def start(self, config):
+        monitors = self.compositor.monitors()
+        layout = monitor_layout(monitors)
+        if self.compositor.locked():
+            return
+        windows = {}
+        for monitor in monitors:
+            if self.stop_requested() or self.compositor.locked() or self.children_exited():
+                return
+            child = subprocess.Popen([
+                self.programs["foot"], "--config=" + str(config), "--app-id=" + APP_ID,
+                "--fullscreen", "--", self.programs["stillterm"], "--exit-on-input", *self.renderer_args,
+            ], stdin=subprocess.DEVNULL, start_new_session=True)
+            self.children.append(child)
+            deadline = time.monotonic() + 5
+            placed = False
+            while time.monotonic() < deadline:
+                if self.stop_requested(0.05) or self.children_exited() or self.compositor.locked():
+                    return
+                clients = self.compositor.query("clients")
+                matches = [client for client in clients if client.get("pid") == child.pid and client.get("class") == APP_ID]
+                if not matches:
+                    continue
+                window = matches[0]
+                if not placed:
+                    self.compositor.place(window["address"], monitor["name"])
+                    placed = True
+                    continue
+                if window.get("monitor") == monitor["id"] and window.get("fullscreen", 0) != 0:
+                    if window.get("inhibitingIdle", False):
+                        raise IntegrationError("Stillterm's terminal must not inhibit idle locking")
+                    windows[monitor["name"]] = window["address"]
+                    break
+            else:
+                raise IntegrationError("Foot did not become fullscreen on " + monitor["name"])
+        if self.stop_requested() or self.compositor.locked():
+            return
+        focused = next((m for m in monitors if m.get("focused")), monitors[0])
+        selector = "address:" + windows[focused["name"]]
+        self.compositor.dispatch(f"hl.dsp.focus({{window={json.dumps(selector)}}})", f"focuswindow {selector}")
+        pointer = self.compositor.query("cursorpos")
+        print(f"Stillterm running on {len(monitors)} monitor(s). Move the pointer or press a key to dismiss.", flush=True)
+        while not self.stop_requested(POLL_SECONDS):
+            if self.children_exited() or self.compositor.locked():
+                return
+            if monitor_layout(self.compositor.monitors()) != layout:
+                return
+            if self.compositor.query("cursorpos") != pointer:
+                return
+            active = self.compositor.query("activewindow")
+            if active.get("pid") not in {child.pid for child in self.children} or active.get("class") != APP_ID:
+                return
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    start = commands.add_parser("start", help="run until input, stop, lock, or display change")
+    start.add_argument("renderer_args", nargs=argparse.REMAINDER, help="Stillterm options after --")
+    commands.add_parser("stop", help="stop only this session's Stillterm windows")
+    commands.add_parser("doctor", help="check dependencies and compositor capabilities without opening windows")
+    args = parser.parse_args()
+    runtime, signature = environment()
+    directory = control_directory(runtime, signature)
+    socket_path = directory / "control.sock"
+    if args.command == "stop":
+        with socket.socket(socket.AF_UNIX) as connection:
+            connection.settimeout(1)
+            try:
+                connection.connect(str(socket_path))
+            except (FileNotFoundError, ConnectionRefusedError):
+                pass
+        return
+    compositor = Hyprland(runtime, signature)
+    programs = dependencies()
+    with tempfile.TemporaryDirectory(prefix="config-", dir=directory) as temporary:
+        config = Path(temporary) / "foot.ini"
+        config.write_text(FOOT_CONFIG)
+        subprocess.run([programs["foot"], "--check-config", "--config=" + str(config)], check=True, timeout=8)
+        if args.command == "doctor":
+            print(json.dumps({"hyprland": compositor.query("version"), "locked": compositor.locked(),
+                              "monitors": [m["name"] for m in compositor.monitors()], "commands": programs}, indent=2))
+            print("Source-reviewed target: Hyprland 0.56.2 / Foot 1.27.0. Desktop acceptance testing is pending.")
+            print("Omarchy 4.0.4: manual preview only; do not replace its automatic idle service.")
+            return
+        with (directory / "instance.lock").open("w") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                print("Stillterm is already running in this session.")
+                return
+            socket_path.unlink(missing_ok=True)
+            with socket.socket(socket.AF_UNIX) as control:
+                control.bind(str(socket_path))
+                control.listen(4)
+                renderer_args = args.renderer_args
+                if renderer_args[:1] == ["--"]:
+                    renderer_args = renderer_args[1:]
+                run = Run(compositor, control, programs, renderer_args)
+                for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+                    signal.signal(sig, run.request_stop)
+                try:
+                    run.start(config)
+                finally:
+                    run.cleanup()
+                    socket_path.unlink(missing_ok=True)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (IntegrationError, OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        print(f"stillterm-hyprland: {error}", file=sys.stderr)
+        sys.exit(1)
