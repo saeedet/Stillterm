@@ -94,7 +94,15 @@ build 4's growth to about 885 MiB across 12 stopped views. Build 5 stayed near
 test process footprint, including AppKit and display buffers, at 2× backing scale;
 it is not the installed helper's memory usage. Drawing/lifecycle checks and the
 memory check passed for arm64 and x86_64 (under Rosetta).
-**Repeated installed previews and long-session memory validation remain pending.**
+Installed build 5 was then exercised through three full-screen previews on the
+same two-display Mac. Logs confirmed 12 starts and 12 stops across retained
+instances. After System Settings closed, the existing helper held at 117.2 MiB
+and 0.0% CPU across three samples, without restarting the process. `vmmap` showed
+one 45.6 MiB IOSurface allocation, versus 22 totaling about 595 MiB in the earlier
+long-session report. Its peak footprint was still 850.3 MiB during this session;
+macOS restarts multiple retained instances on later previews. This short test
+supports improved cleanup after dismissal, not a sustained active-memory bound.
+**Long-session memory and active-rendering performance validation remain pending.**
 
 The bundle contains arm64 and x86_64 code. Both slices passed the native host
 checks locally (the Intel slice under Rosetta); physical Intel hardware remains
