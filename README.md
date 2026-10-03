@@ -53,8 +53,9 @@ testing are still pending. See [macOS setup and distribution](docs/macos.md).
 
 On Windows, run `./scripts/build-windows.ps1` from PowerShell to build
 `target/windows/Stillterm.scr`. It supports full screen, native settings, and the
-embedded Windows preview. The manual checklist passed on Windows 10; Windows 11
-retesting remains pending. This is an unsigned development build. See [setup and the test checklist](docs/windows.md).
+embedded Windows preview. The manual checklist passed on Windows 10 and Windows 11.
+Milestone 3 implementation and manual testing are complete. This remains an unsigned
+development build. See [setup and the test checklist](docs/windows.md).
 
 ## Run
 
@@ -122,7 +123,7 @@ the monochrome theme otherwise uses a detected grayscale or basic-color palette.
 | Windows terminal | Cross-checked for compilation; native CI configured; interactive testing pending |
 | Linux terminal | Cross-checked for compilation; native CI and PTY checks configured |
 | macOS `.saver` | Installed screensaver tested on Apple M3 / macOS 14.6.1; Intel slice checked under Rosetta; signed downloads pending |
-| Windows `.scr` | Manual checklist passed on Windows 10; Windows 11 retest pending; unsigned x64 build |
+| Windows `.scr` | Manual checklist passed on Windows 10 and Windows 11; unsigned x64 build |
 | Omarchy / Hyprland idle integration | Planned — Milestone 4; version-specific integration |
 
 [CI](https://github.com/saeedet/Stillterm/actions) checks the workspace and macOS

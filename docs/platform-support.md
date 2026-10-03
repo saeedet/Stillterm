@@ -52,13 +52,14 @@ Windows API calls stay in the adapter; the conventional screen saver library is 
 reference for lifecycle behavior rather than an engine dependency.
 See [Windows setup and validation](windows.md). [Microsoft contract](https://learn.microsoft.com/en-us/windows/win32/lwef/screen-saver-library).
 
-The tester reported the manual checklist passing on Windows 10 on 2026-10-02;
-the exact OS build and display configuration were not recorded. Windows 11 retesting
-remains pending after the settings-window fix. Acceptance covers invocation modes,
-parent destruction, invalid handles, monitor
-changes, mixed DPI, input dismissal, Windows resume-authentication settings, and
-install/uninstall on a clean system. Keep authentication with Windows. Evaluate
-code signing before public binary distribution.
+Milestone 3 implementation and manual testing are complete. The tester reported
+the checklist passing on Windows 10 on 2026-10-02 and Windows 11 on 2026-10-03,
+including the settings-window fix. Exact OS builds and display configurations
+were not recorded; these results do not imply universal Windows compatibility.
+Automated checks complement manual validation of configuration, preview, full-screen
+animation, input dismissal, displays, sleep/wake, resource use, and installation.
+Windows retains responsibility for authentication. Signing and public binary
+distribution remain deferred.
 
 ## Omarchy / Hyprland — Milestone 4
 
