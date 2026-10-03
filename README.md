@@ -45,9 +45,9 @@ scripts/check-macos.sh --preview
 Open `target/macos/Stillterm.saver` to install. It includes both themes and a native
 options panel. Local installed-screensaver testing passed on Apple M3 with macOS
 14.6.1, including theme switching, multiple displays, sleep/wake, and cleanup after
-dismissal. Longer use exposed retained graphics memory in the macOS host; memory
-cleanup remains open. Signed, notarized downloads and broader compatibility
-testing are still pending. See [macOS setup and distribution](docs/macos.md).
+dismissal. Build 5 releases its drawing surface on stop and passes a retained-view
+memory regression check; longer installed-system testing is still pending. Signed,
+notarized downloads and broader compatibility testing are also pending. See [macOS setup and distribution](docs/macos.md).
 
 ## Windows screensaver
 

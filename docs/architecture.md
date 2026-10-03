@@ -84,8 +84,10 @@ and return failure; invalid pointers, aborts, and allocation failure are not cau
 
 Each `StilltermView` owns one handle, buffers, and a Core Text glyph cache. The
 native view advances using a monotonic clock, invalidates changed rows, and draws
-only dirty cells. The system owns the animation timer. Start/stop are guarded;
-stop and sleep release resources, and late callbacks do no work. Hidden/detached
+only dirty cells in a removable child view. The outer view uses a black layer
+background without a drawing bitmap. Stop/sleep removes the child so macOS can
+release its backing surface even if the host retains the outer view. The system
+owns the animation timer. Start/stop are guarded; late callbacks do no work. Hidden/detached
 views suspend rendering. The settings sheet validates before persisting through
 `ScreenSaverDefaults`; it does not read CLI files or alter system lock preferences.
 

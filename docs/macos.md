@@ -60,7 +60,9 @@ scripts/check-macos.sh
 Checks load the actual bundle into a temporary native window and exercise drawing,
 resizing (including an empty surface), independent instances, repeated start/stop,
 late callbacks, retained views after dismissal, remote-host window visibility,
-hidden views, simulated sleep/wake notifications, and the options sheet.
+hidden views, simulated sleep/wake notifications, and the options sheet. A separate
+memory check retains 12 stopped, layer-backed views at 1600×900 points and verifies
+that the process footprint stays bounded after warm-up. These checks run in CI.
 Preference tests use disposable, isolated domains and a separate writer process
 to check switching from Matrix to Monochrome and back. The pixel check verifies
 that the Matrix theme produces green glyphs through Core Text. A native frame is
@@ -80,8 +82,19 @@ to IOSurface display buffers and 41 MiB to Core Animation; ordinary heap allocat
 were about 8 MiB. Most retained writable memory was reported in the swapped category.
 This is consistent with the legacy host retaining drawing surfaces after dismissal.
 Stopping animation does not establish that the host released those surfaces.
-**Long-session memory cleanup remains unresolved.** Restarting the idle helper
-clears the current allocation but is not a durable fix or an automatic product behavior.
+Build 5 moves drawing into a removable child view and gives the outer view a
+bitmap-free black background. Stop, sleep, hiding, or detachment removes the
+child along with the engine resources. The next active frame recreates it. This
+uses AppKit's layer update path without modifying the host window or terminating
+its process. See [Apple's layer drawing guidance](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/CoreAnimation_guide/SettingUpLayerObjects/SettingUpLayerObjects.html).
+
+On the same M3 / macOS 14.6.1 on 2026-10-03, the retained-view check reproduced
+build 4's growth to about 885 MiB across 12 stopped views. Build 5 stayed near
+228 MiB during the check and settled near 184 MiB. The measurement is the whole
+test process footprint, including AppKit and display buffers, at 2× backing scale;
+it is not the installed helper's memory usage. Drawing/lifecycle checks and the
+memory check passed for arm64 and x86_64 (under Rosetta).
+**Repeated installed previews and long-session memory validation remain pending.**
 
 The bundle contains arm64 and x86_64 code. Both slices passed the native host
 checks locally (the Intel slice under Rosetta); physical Intel hardware remains
