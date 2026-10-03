@@ -11,8 +11,23 @@
 static NSString *const STScreenSaverWillStop = @"com.apple.screensaver.willstop";
 static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 
+@interface StilltermView (STDrawing)
+- (void)drawFrameInRect:(NSRect)rect canvas:(NSView *)canvas;
+@end
+
+// macOS may retain the ScreenSaverView after dismissal. Keep its root layer
+// bitmap-free, and give the drawing surface a lifetime we can end on stop.
+@interface StilltermCanvasView : NSView
+@property(nonatomic, weak) StilltermView *owner;
+@end
+@implementation StilltermCanvasView
+- (BOOL)isOpaque { return YES; }
+- (void)drawRect:(NSRect)rect { [self.owner drawFrameInRect:rect canvas:self]; }
+@end
+
 @implementation StilltermView {
     StEngine *_engine;
+    StilltermCanvasView *_canvas;
     StilltermSettings *_settings;
     StilltermOptionsController *_optionsController;
     id _dismissObserver;
@@ -26,6 +41,8 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 }
 - (instancetype)initWithFrame:(NSRect)frame isPreview:(BOOL)isPreview {
     if ((self = [super initWithFrame:frame isPreview:isPreview])) {
+        self.wantsLayer = YES;
+        self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawOnSetNeedsDisplay;
         [self reloadSettings];
         NSNotificationCenter *center = NSWorkspace.sharedWorkspace.notificationCenter;
         [center addObserver:self selector:@selector(willSleep:) name:NSWorkspaceWillSleepNotification object:nil];
@@ -40,8 +57,14 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     return self;
 }
 - (BOOL)isOpaque { return YES; }
+- (BOOL)wantsUpdateLayer { return YES; }
+- (void)updateLayer {
+    self.layer.backgroundColor = NSColor.blackColor.CGColor;
+}
 - (BOOL)hasConfigureSheet { return YES; }
 - (void)releaseEngine {
+    [_canvas removeFromSuperview];
+    _canvas = nil;
     st_destroy(_engine); _engine = NULL;
     _cells = nil; _nextCells = nil; _lines = nil; _font = nil;
     _columns = 0; _rows = 0; _lastTime = 0; _reportedFrame = NO;
@@ -104,6 +127,7 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     _font = nil; _lines = nil;
     _lastTime = 0;
     self.needsDisplay = YES;
+    _canvas.needsDisplay = YES;
 }
 - (BOOL)prepareFrame {
     if (!isfinite(NSWidth(self.bounds)) || !isfinite(NSHeight(self.bounds))) return NO;
@@ -129,7 +153,14 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
         _columns = width; _rows = height;
         NSUInteger bytes = (NSUInteger)width * height * sizeof(StCell);
         _cells = [NSMutableData dataWithLength:bytes]; _nextCells = [NSMutableData dataWithLength:bytes];
-        _lastTime = 0; self.needsDisplay = YES;
+        _lastTime = 0; _canvas.needsDisplay = YES;
+    }
+    if (!_canvas && width > 0 && height > 0) {
+        _canvas = [[StilltermCanvasView alloc] initWithFrame:self.bounds];
+        _canvas.owner = self;
+        _canvas.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        _canvas.wantsLayer = YES;
+        [self addSubview:_canvas];
     }
     return YES;
 }
@@ -161,7 +192,7 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     const StCell *previous = _cells.bytes, *next = _nextCells.bytes;
     for (uint32_t row = 0; row < _rows; row++) {
         if (memcmp(previous + row * _columns, next + row * _columns, _columns * sizeof(StCell)) != 0)
-            [self setNeedsDisplayInRect:NSMakeRect(0, NSHeight(self.bounds) - (row + 1) * _cellHeight,
+            [_canvas setNeedsDisplayInRect:NSMakeRect(0, NSHeight(self.bounds) - (row + 1) * _cellHeight,
                 NSWidth(self.bounds), _cellHeight)];
     }
     NSMutableData *swap = _cells; _cells = _nextCells; _nextCells = swap;
@@ -179,7 +210,7 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     }
     return (__bridge CTLineRef)cached;
 }
-- (void)drawRect:(NSRect)rect {
+- (void)drawFrameInRect:(NSRect)rect canvas:(NSView *)canvas {
     [NSColor.blackColor setFill]; NSRectFill(rect);
     if (!_engine || !_cells || !_font) return;
     CGContextRef context = NSGraphicsContext.currentContext.CGContext;
@@ -188,12 +219,12 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     const StCell *cells = _cells.bytes;
     for (uint32_t row = 0; row < _rows; row++) {
         CGFloat y = NSHeight(self.bounds) - (row + 1) * _cellHeight;
-        if (![self needsToDrawRect:NSMakeRect(0, y, NSWidth(self.bounds), _cellHeight)]) continue;
+        if (![canvas needsToDrawRect:NSMakeRect(0, y, NSWidth(self.bounds), _cellHeight)]) continue;
         for (uint32_t column = 0; column < _columns; column++) {
             StCell cell = cells[row * _columns + column];
             if (!cell.visible) continue;
             NSRect box = NSMakeRect(column * _cellWidth, y, _cellWidth, _cellHeight);
-            if (![self needsToDrawRect:box]) continue;
+            if (![canvas needsToDrawRect:box]) continue;
             CGContextSaveGState(context);
             CGContextClipToRect(context, NSRectToCGRect(box));
             CGContextSetRGBFillColor(context, cell.red / 255.0, cell.green / 255.0, cell.blue / 255.0, 1);

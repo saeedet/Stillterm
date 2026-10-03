@@ -115,6 +115,9 @@ int main(int argc, const char *argv[]) {
         require([view valueForKey:@"cells"] != nil, @"Remote host visibility must not suppress rendering");
         NSData *remoteBefore = [[view valueForKey:@"cells"] copy];
         pump(0.15);
+        // A real remote host supplies callbacks. Drive one explicitly because
+        // desktop AppKit may throttle the synthetic invisible window's timer.
+        [view animateOneFrame];
         require(![remoteBefore isEqual:[view valueForKey:@"cells"]], @"Remote-hosted rain must advance");
         window.simulateRemoteVisibility = NO;
         require(visiblePixels(snapshot(view), YES) > 100, @"Remote-hosted frame must contain green glyphs");
@@ -125,12 +128,21 @@ int main(int argc, const char *argv[]) {
         require(visiblePixels(snapshot(view), YES) > 10, @"Resized preview must render");
         [view setFrameSize:NSZeroSize]; [view animateOneFrame];
         [view setFrameSize:NSMakeSize(800, 500)]; pump(0.1);
+        [view stopAnimation];
         for (int i = 0; i < 20; i++) {
-            [view stopAnimation]; [view animateOneFrame];
-            require([view valueForKey:@"cells"] == nil, @"Stop releases buffers; late callbacks remain idle");
-            [view startAnimation]; [view animateOneFrame];
+            __weak NSView *canvas;
+            @autoreleasepool {
+                [view startAnimation]; [view animateOneFrame]; pump(0.01);
+                canvas = [view valueForKey:@"canvas"];
+                require(canvas != nil, @"Active animation owns a drawing surface");
+                [view stopAnimation]; [view animateOneFrame];
+                require([view valueForKey:@"cells"] == nil && [view valueForKey:@"canvas"] == nil,
+                    @"Stop releases resources; late callbacks remain idle");
+            }
+            pump(0.01);
+            require(canvas == nil, @"Stop destroys the drawing view while the host retains its parent");
         }
-        pump(0.1);
+        [view startAnimation]; pump(0.1);
         ScreenSaverView *second = [[viewClass alloc] initWithFrame:NSMakeRect(0, 0, 200, 120) isPreview:NO];
         [window.contentView addSubview:second]; [second startAnimation]; pump(0.1);
         [view stopAnimation];
@@ -145,7 +157,7 @@ int main(int argc, const char *argv[]) {
             [retained screenSaverWillStop:dismissal];
             [retained screenSaverWillStop:dismissal];
             [retained animateOneFrame];
-            require(!retained.isAnimating && [retained valueForKey:@"cells"] == nil,
+            require(!retained.isAnimating && [retained valueForKey:@"cells"] == nil && [retained valueForKey:@"canvas"] == nil,
                 @"Dismissal stops retained timers and releases buffers despite late callbacks");
         }
         [view screenSaverWillStop:dismissal];
@@ -155,7 +167,7 @@ int main(int argc, const char *argv[]) {
         pump(0.15);
         for (ScreenSaverView *retained in @[second, third]) {
             [retained animateOneFrame];
-            require(!retained.isAnimating && [retained valueForKey:@"cells"] == nil,
+            require(!retained.isAnimating && [retained valueForKey:@"cells"] == nil && [retained valueForKey:@"canvas"] == nil,
                 @"Wake must not revive dismissed instances");
         }
         [second startAnimation]; pump(0.1);
@@ -164,12 +176,12 @@ int main(int argc, const char *argv[]) {
         [second stopAnimation]; [second removeFromSuperview]; [third removeFromSuperview];
         [NSWorkspace.sharedWorkspace.notificationCenter postNotificationName:NSWorkspaceWillSleepNotification object:nil];
         [view animateOneFrame];
-        require([view valueForKey:@"cells"] == nil, @"Sleep releases buffers");
+        require([view valueForKey:@"cells"] == nil && [view valueForKey:@"canvas"] == nil, @"Sleep releases buffers and drawing surface");
         [NSWorkspace.sharedWorkspace.notificationCenter postNotificationName:NSWorkspaceDidWakeNotification object:nil];
         pump(0.1);
         require([view valueForKey:@"cells"] != nil, @"Wake restarts rendering while active");
         window.contentView.hidden = YES; [view animateOneFrame];
-        require([view valueForKey:@"cells"] == nil, @"Hidden view releases buffers");
+        require([view valueForKey:@"cells"] == nil && [view valueForKey:@"canvas"] == nil, @"Hidden view releases buffers and drawing surface");
         window.contentView.hidden = NO; pump(0.1);
         require(view.hasConfigureSheet && view.configureSheet != nil, @"Configuration sheet loads");
         NSWindow *sheet = view.configureSheet;

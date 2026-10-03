@@ -33,3 +33,6 @@ xcrun clang -fobjc-arc -fmodules -Wall -Wextra -Werror -O2 -mmacosx-version-min=
   -o "$out/preference-process-tests"
 "$out/preference-process-tests"
 "$app/Contents/MacOS/preview-host" "$bundle" --check "$out/preview.png"
+xcrun clang -fobjc-arc -fmodules -Wall -Wextra -Werror -O2 -mmacosx-version-min=11.0 \
+  platforms/macos/MemoryHost.m -framework Cocoa -framework ScreenSaver -framework QuartzCore -o "$out/memory-host"
+"$out/memory-host" "$bundle"
