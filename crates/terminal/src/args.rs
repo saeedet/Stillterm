@@ -11,6 +11,9 @@ use clap::{Parser, Subcommand};
 pub struct Args {
     #[command(subcommand)]
     pub command: Option<Command>,
+    /// Exit on any key press, mouse button, or scroll (for screensaver hosts)
+    #[arg(long, global = true)]
+    pub exit_on_input: bool,
     /// Read settings from a TOML file
     #[arg(long, global = true, value_name = "FILE")]
     pub config: Option<PathBuf>,

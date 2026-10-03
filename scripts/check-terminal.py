@@ -37,8 +37,9 @@ def check(binary, mode, theme):
     output = bytearray()
     process = None
     try:
+        capture = mode in ("any-key", "mouse-click", "mouse-scroll", "input-signal")
         process = subprocess.Popen(
-            [binary, "--seed", "42", "--theme", theme],
+            [binary, "--seed", "42", "--theme", theme] + (["--exit-on-input"] if capture else []),
             stdin=slave, stdout=slave, stderr=slave,
             env={**os.environ, "TERM": "xterm-256color"},
             start_new_session=True,
@@ -55,7 +56,25 @@ def check(binary, mode, theme):
         until = time.monotonic() + 0.2
         while time.monotonic() < until:
             read_available(master, output)
-        if mode in ("q", "escape", "ctrl-c"):
+        if capture:
+            assert b"\x1b[?1003h" in output, "screensaver mode must capture mouse input"
+        else:
+            assert b"\x1b[?1003h" not in output, "ordinary CLI must not capture mouse input"
+        if mode in ("any-key", "mouse-click", "mouse-scroll"):
+            # A synthetic pointer move on mapping must not dismiss the saver.
+            os.write(master, b"\x1b[<35;10;10M")
+            time.sleep(0.1)
+            assert process.poll() is None, "synthetic pointer move dismissed the saver"
+            os.write(master, {"any-key": b"x", "mouse-click": b"\x1b[<0;10;10M",
+                              "mouse-scroll": b"\x1b[<64;10;10M"}[mode])
+        elif mode == "input-signal":
+            process.send_signal(signal.SIGTERM)
+        elif mode == "ordinary-key":
+            os.write(master, b"x")
+            time.sleep(0.1)
+            assert process.poll() is None, "ordinary CLI exited on an unrelated key"
+            os.write(master, b"q")
+        elif mode in ("q", "escape", "ctrl-c"):
             os.write(master, {"q": b"q", "escape": b"\x1b", "ctrl-c": b"\x03"}[mode])
         elif mode in ("SIGINT", "SIGTERM", "SIGHUP"):
             process.send_signal(getattr(signal, mode))
@@ -83,6 +102,8 @@ def check(binary, mode, theme):
         assert termios.tcgetattr(slave) == original, f"{mode}: terminal modes changed"
         assert b"\x1b[?1049l" in output, f"{mode}: alternate screen not left"
         assert b"\x1b[?25h" in output, f"{mode}: cursor not restored"
+        if capture:
+            assert b"\x1b[?1003l" in output, "mouse capture was not restored"
         print(f"PASS {mode}")
     finally:
         if process is not None and process.poll() is None:
@@ -99,7 +120,7 @@ def main():
     parser.add_argument("--panic-check", action="store_true", help="also run the Rust panic cleanup test in a PTY")
     args = parser.parse_args()
     binary = str(Path(args.binary).resolve())
-    for mode in ("q", "escape", "ctrl-c", "SIGINT", "SIGTERM", "SIGHUP", "resize", "resize-error"):
+    for mode in ("q", "escape", "ctrl-c", "SIGINT", "SIGTERM", "SIGHUP", "resize", "resize-error", "ordinary-key", "any-key", "mouse-click", "mouse-scroll", "input-signal"):
         check(binary, mode, args.theme)
     if args.panic_check:
         check_panic()
@@ -129,7 +150,7 @@ def check_panic():
             if not read_available(master, output, 0):
                 break
         assert inspected, f"panic cleanup handshake missing: {output!r}"
-        for sequence in [b"\x1b[?1049h", b"\x1b[?1049l", b"\x1b[?25h"]:
+        for sequence in [b"\x1b[?1049h", b"\x1b[?1049l", b"\x1b[?25h", b"\x1b[?1003l"]:
             assert sequence in output, f"panic cleanup missing {sequence!r}: {output!r}"
         print("PASS panic cleanup")
     finally:

@@ -17,7 +17,7 @@ use std::{
 
 use clap::Parser;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
+    event::{self, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind},
     terminal,
 };
 use stillterm_engine::{Engine, GridSize, Theme};
@@ -61,8 +61,14 @@ fn run() -> Result<(), Box<dyn Error>> {
     let signal_stop = Arc::clone(&stop);
     ctrlc::set_handler(move || signal_stop.store(true, Ordering::Relaxed))?;
     session::install_panic_hook();
-    let session = Session::enter()?;
-    let result = animate(&mut engine, settings.fps, settings.theme, &stop);
+    let session = Session::enter(args.exit_on_input)?;
+    let result = animate(
+        &mut engine,
+        settings.fps,
+        settings.theme,
+        &stop,
+        args.exit_on_input,
+    );
     let restored = session.finish();
     result?;
     restored?;
@@ -74,6 +80,7 @@ fn animate(
     fps: u16,
     theme: Theme,
     stop: &AtomicBool,
+    exit_on_input: bool,
 ) -> Result<(), Box<dyn Error>> {
     let interval = Duration::from_secs_f64(1.0 / f64::from(fps));
     let mut renderer = Renderer::new(Palette::detect(theme));
@@ -103,12 +110,18 @@ fn animate(
         if event::poll(wait)? {
             match event::read()? {
                 Event::Key(key) if key.kind != KeyEventKind::Release => {
-                    if matches!(key.code, KeyCode::Esc | KeyCode::Char('q'))
+                    if exit_on_input
+                        || matches!(key.code, KeyCode::Esc | KeyCode::Char('q'))
                         || (key.code == KeyCode::Char('c')
                             && key.modifiers.contains(KeyModifiers::CONTROL))
                     {
                         break;
                     }
+                }
+                // A terminal can report a synthetic pointer move when its window
+                // maps. The desktop adapter handles global pointer movement.
+                Event::Mouse(mouse) if exit_on_input && mouse.kind != MouseEventKind::Moved => {
+                    break;
                 }
                 Event::Resize(columns, rows) => {
                     engine.resize(GridSize::new(columns, rows)?);
