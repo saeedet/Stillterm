@@ -43,15 +43,22 @@ pub struct Settings {
 impl Settings {
     pub fn load(args: &Args) -> Result<Self, Box<dyn Error>> {
         let config = if let Some(path) = &args.config {
-            let mut text = String::new();
+            let mut bytes = Vec::new();
             File::open(path)
                 .map_err(|e| format!("cannot read {}: {e}", path.display()))?
                 .take(65_537)
-                .read_to_string(&mut text)?;
-            if text.len() > 65_536 {
-                return Err("configuration file must be at most 64 KiB".into());
+                .read_to_end(&mut bytes)
+                .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+            if bytes.len() > 65_536 {
+                return Err(format!(
+                    "configuration file {} must be at most 64 KiB",
+                    path.display()
+                )
+                .into());
             }
-            toml::from_str(&text)
+            let text = std::str::from_utf8(&bytes)
+                .map_err(|e| format!("configuration file {} must be UTF-8: {e}", path.display()))?;
+            toml::from_str(text)
                 .map_err(|e| format!("invalid configuration in {}: {e}", path.display()))?
         } else {
             FileConfig::default()
