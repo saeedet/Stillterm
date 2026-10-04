@@ -36,6 +36,12 @@ The executable is unsigned and may trigger Windows download/reputation warnings.
 Signing and public binary releases are deferred. Stillterm does not change
 Windows lock, password, or idle settings itself.
 
+To upgrade, exit any preview and close Windows Screen Saver Settings, then replace
+`Stillterm.scr` in the same permanent folder. Reopen Screen Saver Settings and
+check Settings and Preview. Saved preferences are retained. If Windows reports
+that the file is in use, finish the running Stillterm preview/settings session
+before replacing it.
+
 To remove it, select another screensaver first and delete the `.scr` file.
 To reset its preferences too, delete `%APPDATA%\Stillterm\screensaver.toml`.
 

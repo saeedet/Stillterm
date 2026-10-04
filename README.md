@@ -1,6 +1,6 @@
 # Stillterm
 
-Quiet character animation for your terminal and macOS screensaver, powered by Rust.
+Quiet character animation for terminals and native screensavers, powered by Rust.
 
 Sparse streams, fading trails, and a small reusable animation engine. Stillterm
 runs directly in your terminal, with deterministic seeds and a 30 FPS default.
@@ -105,7 +105,12 @@ movie's mirrored characters. True-color terminals show the smoothest green ramp;
 
 Settings apply in this order: built-in defaults, an explicitly supplied TOML file,
 then command-line overrides. The selected theme supplies defaults for omitted
-visual settings. No configuration file is written automatically.
+visual settings. Files must be UTF-8 TOML, no larger than 64 KiB. No configuration
+file is written automatically.
+
+These settings configure the terminal and Linux adapter. The macOS and Windows
+screensavers use their own **Options/Settings** panels and per-user preferences;
+changing a CLI file does not change either native screensaver.
 
 | Setting | Default | Accepted values |
 | --- | --- | --- |
@@ -164,5 +169,6 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 
-[Contributing](CONTRIBUTING.md) covers terminal tests, visual changes, and bug reports.
+[Contributing](CONTRIBUTING.md) covers platform checks, visual changes, and bug reports.
+See the [development changelog](CHANGELOG.md) for implemented changes and remaining limits.
 Licensed under [MIT](LICENSE).

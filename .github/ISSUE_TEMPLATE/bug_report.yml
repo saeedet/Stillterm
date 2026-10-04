@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a reproducible problem with Stillterm.
+body:
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where does it happen?
+      options:
+        - Terminal
+        - macOS screensaver
+        - Windows screensaver
+        - Linux / Hyprland adapter
+        - Build or installation
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the OS version/build, architecture, Stillterm version or commit, and installation method. For terminal/Linux issues, include terminal and compositor versions; for screensavers, include monitor resolution and scaling.
+      placeholder: macOS 14.6.1 (23G93), Apple M3, built from commit…
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include relevant commands/settings and whether this is settings, embedded preview, full-screen preview, or idle activation.
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Expected and actual behavior
+      description: Include the exact error if one appears. For resource use, say whether animation is active or dismissed, how long it ran, and what you measured.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or screenshots (optional)
+      description: Remove personal paths and unrelated screen contents. For Linux, include stillterm-hyprland doctor output if available. Note any workaround you tried.

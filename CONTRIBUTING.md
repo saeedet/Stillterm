@@ -16,6 +16,8 @@ cargo test --workspace --all-targets --locked
 cargo doc --workspace --no-deps --locked
 ```
 
+CI treats documentation warnings as errors (`RUSTDOCFLAGS="-D warnings"`).
+
 For terminal changes, run these additional checks on macOS or Linux with Python 3:
 
 ```sh
@@ -52,9 +54,18 @@ Describe the user-visible problem, the change, and how you tested it. Use concis
 commit subjects such as `fix(terminal): restore the cursor after a write error`.
 Keep documentation and tests alongside the behavior they describe.
 
-For terminal bugs, include OS, terminal emulator, Rust/Stillterm version, command,
-and whether resizing or suspension was involved. Remove private paths and any
-unrelated terminal contents from recordings.
+Use the [bug-report form](https://github.com/saeedet/Stillterm/issues/new?template=bug_report.yml)
+for reproduction steps and environment details. For terminal bugs, include the
+terminal emulator and command. For screensaver bugs, distinguish embedded preview,
+full-screen preview, settings, and idle activation. For performance reports, include
+active versus idle measurements, elapsed time, display resolution/scaling, and
+settings; see [measurement guidance](docs/performance.md). Remove private paths
+and unrelated terminal contents from logs or recordings.
+
+Record which checks you actually ran, and which need another platform. Automated
+checks do not establish physical desktop compatibility. Keep user-facing changes
+in [Unreleased](CHANGELOG.md); there is no public binary release yet. Signing
+credentials and paid developer accounts are not needed to contribute.
 
 ## Native macOS work
 
@@ -64,6 +75,23 @@ check script opens an interactive preview with the real options panel. See
 [macOS development and release checks](docs/macos.md). Keep animation rules in Rust
 and native lifecycle/presentation in `platforms/macos`; document every unsafe bridge
 contract. Update both the Rust C layouts and header together.
+
+## Native Windows work
+
+On Windows with Rust's MSVC target and Microsoft C++ build tools, run:
+
+```powershell
+cargo clippy -p stillterm-windows --all-targets --locked -- -D warnings
+./scripts/build-windows.ps1
+./scripts/check-windows.ps1
+```
+
+The process checks open disposable native windows and isolate test preferences.
+They do not change your selected screensaver. Keep Win32 calls in
+`crates/windows/src/native`; preserve the safe engine and settings boundaries.
+Also follow the [manual Windows checklist](docs/windows.md#validation) for changes
+to installation, input, display handling, or settings. CI supplies Windows checks
+when developing on another OS; note any remaining manual testing in the PR.
 
 ## Linux integration work
 
