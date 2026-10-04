@@ -67,7 +67,9 @@ From another terminal, `stillterm-hyprland stop` stops the current session's run
 A second start is a no-op. Focus leaving Stillterm, a terminal exiting, locking,
 IPC failure, or a display layout change also closes the windows. On hotplug the
 adapter exits; the next idle activation picks up the new layout. Mirrored outputs
-share their source display instead of getting another window.
+share their source display instead of getting another window. A terminal failure
+returns a nonzero exit status with a diagnostic; ordinary input dismissal returns
+success. Both paths clean up the other Stillterm windows.
 
 The adapter polls compositor state every 250 ms while active, with bounded IPC
 and window-start deadlines. It uses a private session socket and an advisory lock,

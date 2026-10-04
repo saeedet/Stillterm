@@ -70,6 +70,8 @@ signal.signal(signal.SIGTERM, stop)
 while True:
     if (state / "crash").exists() and (state / "crash").read_text() == pid:
         sys.exit(2)
+    if (state / "dismiss").exists() and (state / "dismiss").read_text() == pid:
+        stop()
     time.sleep(0.02)
 ''')
         self.monitors = [dict(id=0, name="DP-1", width=1920, height=1080, scale=1, focused=True),
@@ -81,6 +83,7 @@ while True:
         self.reject_dispatch = False
         self.map_windows = True
         self.malformed = False
+        self.overrides = {}
         self.requests = []
         self.placements = {}
         self.server = IPC(str(self.ipc_dir / ".socket.sock"), Handler)
@@ -132,7 +135,7 @@ while True:
                   "j/version": {"tag": "v0.56.2"}, "j/cursorpos": self.pointer,
                   "j/clients": clients if self.map_windows else [],
                   "j/activewindow": {"pid": 999, "class": "unrelated"} if self.focus_away else (clients[-1] if clients else {})}
-        return json.dumps(values[request])
+        return json.dumps(self.overrides.get(request, values[request]))
 
     def start(self, *options):
         process = subprocess.Popen([sys.executable, str(LAUNCHER), "start", *options],
@@ -153,6 +156,8 @@ while True:
             if not (self.state / "crash").exists() or (self.state / "crash").read_text() != str(pid):
                 self.assertTrue((self.state / f"{pid}.stopped").exists(), f"terminal {pid} leaked")
         self.assertFalse(list(self.runtime.glob("stillterm-*/control.sock")))
+        self.assertNotIn("Traceback", error)
+        return error
 
     def test_monitors_options_and_scoped_stop(self):
         process = self.start("--", "--theme", "matrix", "--characters", "ab';$(example)")
@@ -212,7 +217,32 @@ while True:
         process = self.start()
         self.ready(process)
         (self.state / "crash").write_text(str(self.children()[0]))
+        error = self.stopped(process, code=1)
+        self.assertIn("exited unexpectedly (status 2)", error)
+
+    def test_renderer_crash_during_startup(self):
+        self.map_windows = False
+        process = self.start()
+        until(lambda: self.children())
+        (self.state / "crash").write_text(str(self.children()[0]))
+        self.assertIn("status 2", self.stopped(process, code=1))
+
+    def test_normal_input_dismissal(self):
+        process = self.start()
+        self.ready(process)
+        (self.state / "dismiss").write_text(str(self.children()[0]))
         self.stopped(process)
+
+    def test_invalid_client_response_cleans_up(self):
+        self.overrides["j/clients"] = [None]
+        error = self.stopped(self.start(), code=1)
+        self.assertIn("Invalid Hyprland clients response", error)
+
+    def test_invalid_active_window_response_cleans_up(self):
+        process = self.start()
+        self.ready(process)
+        self.overrides["j/activewindow"] = None
+        self.assertIn("Invalid Hyprland activewindow response", self.stopped(process, code=1))
 
     def test_compositor_failure(self):
         process = self.start()

@@ -57,7 +57,14 @@ class Hyprland:
                     raise IntegrationError("Hyprland response exceeds 4 MiB")
 
     def query(self, name):
-        return json.loads(self.request("j/" + name))
+        reply = json.loads(self.request("j/" + name))
+        if name in ("clients", "monitors"):
+            valid = isinstance(reply, list) and all(isinstance(item, dict) for item in reply)
+        else:
+            valid = isinstance(reply, dict)
+        if not valid:
+            raise IntegrationError(f"Invalid Hyprland {name} response")
+        return reply
 
     def locked(self):
         reply = self.query("locked")
@@ -176,7 +183,11 @@ class Run:
         return self.stopping
 
     def children_exited(self):
-        return any(child.poll() is not None for child in self.children)
+        statuses = [child.poll() for child in self.children]
+        for status in statuses:
+            if status is not None and status != 0:
+                raise IntegrationError(f"Stillterm terminal exited unexpectedly (status {status})")
+        return any(status is not None for status in statuses)
 
     def cleanup(self):
         for child in self.children:
