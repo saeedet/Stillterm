@@ -1,9 +1,9 @@
-//! Optional phrases share the rain grid without changing its random sequence.
+//! Optional phrases bind to real rain streams; ordinary rain keeps its sequence.
 use std::str::FromStr;
 
 use rand_chacha::{ChaCha8Rng, rand_core::RngCore};
 
-use crate::{Cell, ConfigError, Frame, Glyph, GridSize};
+use crate::{ConfigError, Glyph, GridSize};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum WordFrequency {
@@ -85,9 +85,8 @@ impl WordConfig {
 
 struct Appearance {
     phrase: usize,
-    column: u16,
-    row: u16,
-    age: u32,
+    column: usize,
+    salt: u64,
 }
 
 pub(crate) struct Words {
@@ -98,8 +97,8 @@ pub(crate) struct Words {
 
 impl Words {
     pub(crate) fn new(mut rng: ChaCha8Rng) -> Self {
-        // A quick first appearance makes settings previews useful. Subsequent
-        // pauses follow the selected frequency, in fixed 30 Hz simulation ticks.
+        // Try the first word after 3–5 seconds; wait for a suitable falling
+        // stream if necessary. Only this independent RNG schedules words.
         let wait = 90 + rng.next_u32() % 61;
         Self {
             rng,
@@ -112,73 +111,79 @@ impl Words {
         self.active = None;
     }
 
-    pub(crate) fn step(&mut self, config: &WordConfig, size: GridSize) {
+    /// Bind a phrase to an existing active stream. Return its column and the
+    /// minimum trail length needed to keep the letters inside the fading rain.
+    /// Stream tuples contain (column, lifetime salt, head row).
+    pub(crate) fn step(
+        &mut self,
+        config: &WordConfig,
+        size: GridSize,
+        streams: impl Iterator<Item = (usize, u64, u32)> + Clone,
+    ) -> Option<(usize, u32)> {
         if config.phrases.is_empty() || size.is_empty() {
-            return;
+            return None;
         }
-        if let Some(active) = &mut self.active {
-            active.age += 1;
-            if active.age >= 99 {
+        if let Some(active) = &self.active {
+            let length = config.phrases[active.phrase].len() as u32;
+            let alive = streams.clone().any(|(column, salt, head)| {
+                column == active.column
+                    && salt == active.salt
+                    && head < u32::from(size.rows()) + length - 1
+            });
+            if !alive {
                 self.active = None;
                 self.wait = config.frequency.delay(&mut self.rng);
             }
-            return;
+            return None;
         }
         if self.wait > 0 {
             self.wait -= 1;
-            return;
+            return None;
         }
         let fitting: Vec<_> = config
             .phrases
             .iter()
             .enumerate()
-            .filter(|(_, phrase)| phrase.len() <= usize::from(size.columns()))
+            .filter(|(_, phrase)| phrase.len() <= usize::from(size.rows()))
             .map(|(index, _)| index)
             .collect();
-        if !fitting.is_empty() {
-            let phrase = fitting[self.rng.next_u32() as usize % fitting.len()];
-            let width = config.phrases[phrase].len() as u16;
-            let margin = ((size.columns() - width) / 2).min(2);
-            let column = margin
-                + (self.rng.next_u32() % u32::from(size.columns() - width - 2 * margin + 1)) as u16;
-            let row_margin = u16::from(size.rows() > 2);
-            let row =
-                row_margin + (self.rng.next_u32() % u32::from(size.rows() - 2 * row_margin)) as u16;
-            self.active = Some(Appearance {
-                phrase,
-                column,
-                row,
-                age: 0,
-            });
-        } else {
-            self.wait = config.frequency.delay(&mut self.rng);
+        if fitting.is_empty() {
+            return None;
         }
+        let phrase = fitting[self.rng.next_u32() as usize % fitting.len()];
+        let length = config.phrases[phrase].len() as u32;
+        // Start near the top so the full word has time to travel through the
+        // screen, instead of appearing just before its stream leaves the bottom.
+        let last_head = length - 1 + (u32::from(size.rows()) - length).min(3);
+        let candidates: Vec<_> = streams
+            .filter(|(_, _, head)| *head + 1 >= length && *head <= last_head)
+            .collect();
+        if candidates.is_empty() {
+            return None;
+        }
+        let (column, salt, _) = candidates[self.rng.next_u32() as usize % candidates.len()];
+        self.active = Some(Appearance {
+            phrase,
+            column,
+            salt,
+        });
+        Some((column, length + 8))
     }
 
-    pub(crate) fn render(&self, config: &WordConfig, intensity: u32, frame: &mut Frame) {
-        let Some(active) = &self.active else {
-            return;
-        };
-        if intensity == 0 {
-            return;
+    /// Only replace glyphs. Rain owns motion, brightness, fading and emphasis.
+    pub(crate) fn glyph(
+        &self,
+        config: &WordConfig,
+        column: usize,
+        salt: u64,
+        distance: u32,
+    ) -> Option<Glyph> {
+        let active = self.active.as_ref()?;
+        if active.column != column || active.salt != salt {
+            return None;
         }
-        for (offset, glyph) in config.phrases[active.phrase].iter().enumerate() {
-            let stagger = (offset as u32 * 17 + active.phrase as u32 * 13) % 15;
-            if active.age < stagger || active.age >= 81 + stagger {
-                continue;
-            }
-            let reveal = (active.age - stagger + 1).min(6);
-            let fade = (99 - active.age).min(24);
-            let brightness = 255 * intensity / 1000 * reveal / 6 * fade / 24;
-            frame.set(
-                active.column + offset as u16,
-                active.row,
-                Cell {
-                    glyph: *glyph,
-                    intensity: brightness as u8,
-                    emphasis: active.age < 24,
-                },
-            );
-        }
+        let phrase = &config.phrases[active.phrase];
+        let offset = phrase.len().checked_sub(distance as usize + 1)?;
+        Some(phrase[offset])
     }
 }

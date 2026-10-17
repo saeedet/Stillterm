@@ -75,7 +75,6 @@ impl Effect for Rain {
         if self.size.is_empty() {
             return;
         }
-        self.words.step(&self.config.words, self.size);
         self.tick = self.tick.wrapping_add(1);
         for column in 0..self.streams.len() {
             let stream = &mut self.streams[column];
@@ -89,6 +88,17 @@ impl Effect for Rain {
             } else {
                 self.streams[column] = self.stream(false);
             }
+        }
+        if let Some((column, length)) = self.words.step(
+            &self.config.words,
+            self.size,
+            self.streams
+                .iter()
+                .enumerate()
+                .filter(|(_, stream)| stream.active)
+                .map(|(column, stream)| (column, stream.salt, stream.head / 256)),
+        ) {
+            self.streams[column].length = self.streams[column].length.max(length);
         }
     }
 
@@ -109,7 +119,12 @@ impl Effect for Rain {
                 hash = (hash ^ (hash >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
                 hash = (hash ^ (hash >> 27)).wrapping_mul(0x94d049bb133111eb);
                 hash ^= hash >> 31;
-                let glyph = self.config.glyphs[(hash % self.config.glyphs.len() as u64) as usize];
+                let glyph = self
+                    .words
+                    .glyph(&self.config.words, column, stream.salt, head_row - row)
+                    .unwrap_or(
+                        self.config.glyphs[(hash % self.config.glyphs.len() as u64) as usize],
+                    );
                 frame.set(
                     column as u16,
                     row as u16,
@@ -121,8 +136,6 @@ impl Effect for Rain {
                 );
             }
         }
-        self.words
-            .render(&self.config.words, self.config.intensity, frame);
     }
 }
 
@@ -168,6 +181,45 @@ mod tests {
                 .iter()
                 .map(|s| (s.head, s.salt))
                 .collect::<Vec<_>>()
+        );
+    }
+}
+
+#[cfg(test)]
+mod word_style_tests {
+    use super::*;
+    use crate::WordFrequency;
+    use rand_chacha::rand_core::SeedableRng;
+
+    #[test]
+    fn words_use_the_streams_brightness_and_head_emphasis() {
+        let size = GridSize::new(40, 20).unwrap();
+        let config = EffectConfig::new(1.6, 0.35, 1.0, "01")
+            .unwrap()
+            .with_words("anything", WordFrequency::Frequent)
+            .unwrap();
+        let mut rain = Rain::new(config, ChaCha8Rng::seed_from_u64(42));
+        rain.resize(size);
+        let mut words = Frame::new(size);
+        let mut plain = Frame::new(size);
+        for _ in 0..180 {
+            rain.step();
+        }
+        rain.render(&mut words);
+        // Unbind the phrase without changing any stream's state or settings.
+        rain.words.resize();
+        rain.render(&mut plain);
+        let mut changed = 0;
+        for (word, ordinary) in words.cells().iter().zip(plain.cells()) {
+            assert_eq!(word.intensity, ordinary.intensity);
+            assert_eq!(word.emphasis, ordinary.emphasis);
+            if word.glyph != ordinary.glyph {
+                changed += 1;
+            }
+        }
+        assert!(
+            changed > 0,
+            "no word glyphs were present during the style check"
         );
     }
 }

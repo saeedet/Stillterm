@@ -1,21 +1,32 @@
 use stillterm_engine::{EffectConfig, Engine, GridSize, Theme, WordFrequency};
 
-fn has_phrase(engine: &mut Engine, phrase: &str) -> bool {
+fn phrase_position(engine: &mut Engine, phrase: &str) -> Option<(usize, usize)> {
     let width = usize::from(engine.size().columns());
-    width > 0
-        && engine.frame().cells().chunks(width).any(|row| {
-            row.windows(phrase.chars().count()).any(|cells| {
-                cells.iter().all(|cell| cell.intensity > 0)
-                    && cells
-                        .iter()
-                        .map(|cell| cell.glyph.as_char())
-                        .eq(phrase.chars())
-            })
-        })
+    let height = usize::from(engine.size().rows());
+    let letters: Vec<_> = phrase.chars().collect();
+    if width == 0 || letters.len() > height {
+        return None;
+    }
+    let cells = engine.frame().cells();
+    for row in 0..=height - letters.len() {
+        for column in 0..width {
+            if letters.iter().enumerate().all(|(offset, glyph)| {
+                let cell = cells[(row + offset) * width + column];
+                cell.intensity > 0 && cell.glyph.as_char() == *glyph
+            }) {
+                return Some((column, row));
+            }
+        }
+    }
+    None
+}
+
+fn has_phrase(engine: &mut Engine, phrase: &str) -> bool {
+    phrase_position(engine, phrase).is_some()
 }
 
 #[test]
-fn phrases_resolve_then_disappear_without_changing_the_underlying_rain() {
+fn phrases_fall_vertically_inside_a_stream_then_leave_the_screen() {
     for theme in [Theme::Matrix, Theme::Monochrome] {
         let size = GridSize::new(48, 18).unwrap();
         let mut words = Engine::rain(
@@ -26,22 +37,25 @@ fn phrases_resolve_then_disappear_without_changing_the_underlying_rain() {
                 .unwrap(),
             42,
         );
-        let mut plain = Engine::rain(size, theme.rain_config(), 42);
-        let mut appeared = false;
-        let mut returned_to_rain = false;
-        for _ in 0..360 {
+        let mut first = None;
+        let mut moved = false;
+        let mut disappeared = false;
+        for _ in 0..480 {
             words.step();
-            plain.step();
-            appeared |= has_phrase(&mut words, "anything");
-            if appeared && words.frame() == plain.frame() {
-                returned_to_rain = true;
+            let position = phrase_position(&mut words, "anything");
+            if let Some(position) = position {
+                if let Some((column, row)) = first {
+                    moved |= position.0 == column && position.1 > row;
+                } else {
+                    first = Some(position);
+                }
+            } else if first.is_some() {
+                disappeared = true;
             }
         }
-        assert!(appeared, "phrase never became readable");
-        assert!(
-            returned_to_rain,
-            "phrase did not dissolve into the unchanged rain"
-        );
+        assert!(first.is_some(), "phrase never appeared");
+        assert!(moved, "phrase did not move down with its stream");
+        assert!(disappeared, "phrase never left the screen");
     }
 }
 
@@ -101,7 +115,7 @@ fn phrases_handle_small_empty_and_resized_surfaces() {
         .with_words("anything", WordFrequency::Frequent)
         .unwrap();
     let mut engine = Engine::rain(GridSize::new(48, 18).unwrap(), config, 42);
-    for dimensions in [(48, 18), (0, 0), (1, 1), (8, 1), (2, 2), (48, 18)] {
+    for dimensions in [(48, 18), (0, 0), (1, 1), (1, 8), (2, 2), (48, 18)] {
         engine.resize(GridSize::new(dimensions.0, dimensions.1).unwrap());
         for _ in 0..300 {
             engine.step();
@@ -170,4 +184,41 @@ fn frequency_controls_the_number_of_appearances() {
         rare > 0 && rare < occasional && occasional < frequent,
         "frequency did not affect appearances: {rare}, {occasional}, {frequent}"
     );
+}
+
+#[test]
+fn vertical_phrases_fit_a_single_column_and_need_sufficient_height() {
+    let config = EffectConfig::new(1.0, 1.0, 1.0, "01")
+        .unwrap()
+        .with_words("anything", WordFrequency::Frequent)
+        .unwrap();
+    let mut narrow = Engine::rain(GridSize::new(1, 12).unwrap(), config.clone(), 42);
+    let mut short = Engine::rain(GridSize::new(40, 7).unwrap(), config, 42);
+    let mut appeared = false;
+    for _ in 0..2400 {
+        narrow.step();
+        short.step();
+        appeared |= has_phrase(&mut narrow, "anything");
+        assert!(!has_phrase(&mut short, "anything"));
+    }
+    assert!(appeared, "vertical word did not fit a one-column stream");
+}
+
+#[test]
+fn zero_density_has_no_word_streams() {
+    let config = EffectConfig::new(1.0, 0.0, 1.0, "01")
+        .unwrap()
+        .with_words("anything", WordFrequency::Frequent)
+        .unwrap();
+    let mut engine = Engine::rain(GridSize::new(40, 20).unwrap(), config, 42);
+    for _ in 0..1800 {
+        engine.step();
+        assert!(
+            engine
+                .frame()
+                .cells()
+                .iter()
+                .all(|cell| cell.intensity == 0)
+        );
+    }
 }
