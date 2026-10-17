@@ -1,7 +1,7 @@
 # Windows screensaver
 
 Stillterm's native Windows adapter uses the shared Rust rain engine with buffered
-GDI drawing. It includes Monochrome and Matrix themes, a settings window, and the
+GDI drawing. It includes Monochrome, Matrix, and Dense Matrix themes, a settings window, and the
 embedded preview expected by Windows Screen Saver Settings.
 
 This is an unsigned x64 development build targeting Windows 10 version 1703 or
@@ -66,8 +66,10 @@ vertically: the passing head reveals them one by one, holding them bright until 
 word is complete, then they fade from top to bottom. Phrases taller than the view
 are skipped. Theme changes
 preserve phrases and frequency while resetting visual values to the preset.
-The phrase controls have automated checks; manual Windows validation of this new
-feature remains pending.
+**Dense Matrix** uses screen-height trails and sets character size to `10` when
+selected; another theme restores `18`. Adjust size after choosing a theme.
+The new phrase controls and dense preset have automated checks; manual Windows
+validation and dense rendering performance measurements remain pending.
 Save validates every field and replaces the per-user TOML file; Cancel changes
 nothing. A damaged file falls back to defaults during animation and shows an
 explanation when Settings opens. Preferences are separate from the CLI and macOS.
@@ -103,7 +105,7 @@ independently if Windows rejects the owner relationship.
 
 Manual Windows checklist:
 
-- Install, configure, cancel/save, and switch between both themes.
+- Install, configure, cancel/save, and switch between all three themes.
 - Embedded preview and full-screen Preview render and animate.
 - Keyboard, mouse buttons, and meaningful mouse movement dismiss full screen.
 - Idle activation and Windows resume/sign-in behavior work as configured.

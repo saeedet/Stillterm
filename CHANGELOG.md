@@ -8,9 +8,13 @@ has been published.
 
 ### Added
 
+- Dense Matrix preset with long trails scaled to the screen height, dim background
+  streams, and smaller native characters. Select it in Mac/Windows settings or
+  use `--theme dense-matrix`; personal words and frequency are preserved.
+
 - Optional words and phrases appear vertically within rain streams, with Rare,
   Occasional, and Frequent settings. Configure them in native Mac/Windows settings
-  or terminal TOML/flags; existing preferences keep words disabled. Mac build 9 is
+  or terminal TOML/flags; existing preferences keep words disabled. Mac build 10 is
   available for local evaluation; manual Windows feature testing is pending.
 
 - Deterministic rain animation with Monochrome and Matrix themes, configurable
@@ -26,6 +30,9 @@ has been published.
   the first package has been submitted to Apple for notarization.
 
 ### Fixed
+
+- Dense Matrix on macOS batches drawing by font and color to reduce CPU use;
+  stopping or resizing releases its glyph caches and buffers.
 
 - Words stay fixed in a column, light up progressively as the head passes, and
   retain their glow until complete before fading from top to bottom.

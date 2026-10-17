@@ -44,12 +44,12 @@ scripts/build-macos.sh
 scripts/check-macos.sh --preview
 ```
 
-Open `target/macos/Stillterm.saver` to install. It includes both themes and a native
+Open `target/macos/Stillterm.saver` to install. It includes three themes and a native
 options panel. Local installed-screensaver testing passed on Apple M3 with macOS
 14.6.1, including theme switching, multiple displays, sleep/wake, and cleanup after
 dismissal. Build 5 passes a retained-view memory regression check; after three
 installed previews, the idle helper measured 117 MiB and 0% CPU. Longer-session
-memory and active-rendering performance validation are still pending. Signed,
+memory and installed full-screen performance validation are still pending. Signed,
 notarized downloads and broader compatibility testing are also pending. See [macOS setup and distribution](docs/macos.md).
 
 ## Windows screensaver
@@ -103,11 +103,24 @@ Use a font with half-width Katakana support. For an ASCII fallback, add
 movie's mirrored characters. True-color terminals show the smoothest green ramp;
 256-color and basic-color terminals use reduced palettes. `NO_COLOR` disables color.
 
+For a fuller screen, choose **Dense Matrix** in native options or run:
+
+```sh
+stillterm --theme dense-matrix
+stillterm --config examples/dense-matrix.toml
+```
+
+This preset uses long trails scaled to the grid height, dimmer background streams,
+and scattered pale heads (speed `1.2`, density `0.95`, intensity `1.0`). Native theme
+selection sets character size to `10`; adjust it after selecting the preset.
+In a terminal, use the terminal's font settings to fit more columns and rows.
+Dense rendering costs more than the sparse presets; see [local measurements](docs/performance.md).
+
 ## Words in the rain
 
 Open the native screensaver's **Options/Settings**, enter one word or phrase per
 line in **Words / phrases** (Windows: **Words**), and choose Rare, Occasional, or
-Frequent. Leave the field empty to disable it. Both themes support phrases.
+Frequent. Leave the field empty to disable it. All themes support phrases.
 
 In a terminal, including the Linux adapter:
 
@@ -143,7 +156,7 @@ changing a CLI file does not change either native screensaver.
 | Setting | Default | Accepted values |
 | --- | --- | --- |
 | `effect` | `"rain"` | `rain` |
-| `theme` | `"monochrome"` | `monochrome`, `matrix` |
+| `theme` | `"monochrome"` | `monochrome`, `matrix`, `dense-matrix` |
 | `fps` | `30` | Integer, 10–60 |
 | `speed` | `1.0` | 0.1–4.0 |
 | `density` | `0.18` | 0.0–1.0; stream activation probability |

@@ -148,7 +148,7 @@ in Linux CI. Simulation does not validate the real compositor or terminal.
 Before calling Milestone 4 complete, record exact desktop/terminal versions and
 check:
 
-- Both themes fill every independent monitor, including mixed scaling.
+- All themes fill every independent monitor, including mixed scaling.
 - Keyboard, click, scroll, pointer movement, and focus loss dismiss all windows.
 - Repeated starts, hotplug, layout changes, and terminal crashes leave no children.
 - Locking takes over promptly; visualizer failure cannot postpone the lock timer.

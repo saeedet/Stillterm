@@ -1,0 +1,9 @@
+# Native screensavers use their own Options/Settings panels.
+# In a terminal, reduce its font size to fit more columns and rows.
+theme = "dense-matrix"
+fps = 30
+seed = 42
+
+# Optional: one word per line. Empty text disables words.
+words = ""
+word_frequency = "occasional"

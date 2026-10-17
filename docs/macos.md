@@ -1,7 +1,7 @@
 # macOS screensaver
 
 Stillterm builds a native `Stillterm.saver` with the same Rust rain engine as the
-CLI. It includes Monochrome and Matrix themes, a small preview, and an options
+CLI. It includes Monochrome, Matrix, and Dense Matrix themes, a small preview, and an options
 sheet. This is a source-build preview, not a signed public release.
 
 ## Build and try
@@ -44,10 +44,10 @@ and an optional character set. Changing themes resets the visual fields to that
 theme's preset. Blank characters use the preset; custom characters follow the
 CLI's single-column validation. Monochrome is the default.
 
-Build 6 adds **Words / phrases**, one per line, and a **Word frequency** selector.
+The panel includes **Words / phrases**, one per line, and a **Word frequency** selector.
 Empty text disables phrases. Up to 16 phrases of 64 printable, single-column
 characters are supported. Theme changes keep your phrases and frequency.
-Build 9 keeps the letters fixed vertically in their column. The passing stream head
+Letters stay fixed vertically in their column. The passing stream head
 reveals them one by one, holding each bright until the entire word is lit. Then
 letters fade from top to bottom. The first attempt is after roughly 3–5 seconds;
 actual timing also depends on rain speed and density. Phrases taller than the
@@ -55,7 +55,13 @@ preview are skipped; try full-screen preview or a shorter word. Save applies the
 change; Cancel preserves the previous settings.
 The text stays in local preferences.
 
-The phrase-enabled build is for local evaluation. The disk image submitted for
+Build 10 adds **Dense Matrix**: screen-height trails, dim background streams, and
+character size `10`. Selecting another theme restores size `18`; adjust the size
+after choosing a theme. Phrases and frequency are preserved. The denser preset's
+Mac renderer batches glyphs by font and color, retaining per-cell clipping for
+unusual fallback characters. See [performance measurements](performance.md).
+
+The current build is for local evaluation. The disk image submitted for
 notarization on 2026-10-17 is the preserved build 5, without phrases; the current build needs
 its own submission before public distribution.
 
@@ -83,7 +89,21 @@ These checks run in CI.
 Preference tests use disposable, isolated domains and a separate writer process
 to check switching from Matrix to Monochrome and back. The pixel check verifies
 that the Matrix theme produces green glyphs through Core Text. A native frame is
-saved at `target/macos/preview.png` for inspection.
+saved at `target/macos/preview.png` for inspection. Dense checks also compare the
+batched image with ordinary Core Text drawing, report large-window CPU/frame rate,
+and repeat the retained-view memory check using Dense Matrix. These are standalone
+host measurements; installed full-screen and longer-session validation remain pending.
+
+To repeat only the dense measurement after building and running the checks:
+
+```sh
+"target/macos/Stillterm Preview.app/Contents/MacOS/preview-host" \
+  target/macos/Stillterm.saver --measure-dense target/macos/dense-preview.png
+```
+
+Use `--dense` instead for a temporary interactive demo. It changes only that
+preview instance; select **Options → Dense Matrix → Save** to keep it as your
+screensaver theme.
 
 Local functional validation on 2026-10-01: Apple M3, macOS 14.6.1 (23G93),
 Xcode 15.4, Rust 1.88.0. Installed-screensaver checks covered installation,
