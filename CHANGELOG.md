@@ -10,7 +10,7 @@ has been published.
 
 - Optional words and phrases fall vertically inside rain streams, with Rare,
   Occasional, and Frequent settings. Configure them in native Mac/Windows settings
-  or terminal TOML/flags; existing preferences keep words disabled. Mac build 7 is
+  or terminal TOML/flags; existing preferences keep words disabled. Mac build 8 is
   available for local evaluation; manual Windows feature testing is pending.
 
 - Deterministic rain animation with Monochrome and Matrix themes, configurable
@@ -27,8 +27,8 @@ has been published.
 
 ### Fixed
 
-- Words now use the stream's own motion, brightness gradient, and head highlight
-  instead of appearing as separate horizontal text.
+- Words now move vertically with real rain streams. The complete word receives
+  the bright head highlight, with the surrounding trail fading normally.
 
 - macOS disk-image packaging checks each required architecture separately for
   compatibility with the installed Xcode tools.

@@ -41,7 +41,7 @@ static NSBitmapImageRep *snapshot(NSView *view) {
     [view cacheDisplayInRect:view.bounds toBitmapImageRep:rep];
     return rep;
 }
-static BOOL containsPhrase(ScreenSaverView *view, const char *phrase) {
+static BOOL containsGlowingPhrase(ScreenSaverView *view, const char *phrase) {
     NSData *data = [view valueForKey:@"cells"];
     const StCell *cells = data.bytes;
     NSUInteger count = data.length / sizeof(StCell), length = strlen(phrase);
@@ -49,7 +49,8 @@ static BOOL containsPhrase(ScreenSaverView *view, const char *phrase) {
     if (!columns) return NO;
     for (NSUInteger i = 0; i + (length - 1) * columns < count; i++) {
         BOOL matches = YES;
-        for (NSUInteger j = 0; j < length; j++) matches &= cells[i + j * columns].scalar == (uint8_t)phrase[j] && cells[i + j * columns].visible;
+        for (NSUInteger j = 0; j < length; j++) matches &= cells[i + j * columns].scalar == (uint8_t)phrase[j] && cells[i + j * columns].visible &&
+            cells[i + j * columns].red > 0 && cells[i + j * columns].blue > 0;
         if (matches) return YES;
     }
     return NO;
@@ -136,17 +137,17 @@ int main(int argc, const char *argv[]) {
         if (argc >= 4) require([[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
             writeToFile:[NSString stringWithUTF8String:argv[3]] atomically:YES], @"Write snapshot");
         CFTimeInterval wordDeadline = NSProcessInfo.processInfo.systemUptime + 10.0;
-        while (!containsPhrase(view, "anything") && NSProcessInfo.processInfo.systemUptime < wordDeadline) {
+        while (!containsGlowingPhrase(view, "anything") && NSProcessInfo.processInfo.systemUptime < wordDeadline) {
             pump(0.02); [view animateOneFrame];
         }
-        require(containsPhrase(view, "anything"), @"Configured phrase must fall vertically through the native frame");
+        require(containsGlowingPhrase(view, "anything"), @"Every letter of the vertical phrase must use the bright head color");
         if (argc >= 4) {
             pump(0.15); [view animateOneFrame];
             NSString *wordPath = [[NSString stringWithUTF8String:argv[3]] stringByDeletingLastPathComponent];
             require([[snapshot(view) representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
                 writeToFile:[wordPath stringByAppendingPathComponent:@"words-preview.png"] atomically:YES], @"Write phrase snapshot");
         }
-        puts("PASS configured phrase falls vertically through the native screensaver view");
+        puts("PASS every letter of the vertical phrase uses the bright head color");
         window.simulateRemoteVisibility = YES;
         [view animateOneFrame];
         require([view valueForKey:@"cells"] != nil, @"Remote host visibility must not suppress rendering");

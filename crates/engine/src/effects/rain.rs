@@ -119,19 +119,27 @@ impl Effect for Rain {
                 hash = (hash ^ (hash >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
                 hash = (hash ^ (hash >> 27)).wrapping_mul(0x94d049bb133111eb);
                 hash ^= hash >> 31;
-                let glyph = self
-                    .words
-                    .glyph(&self.config.words, column, stream.salt, head_row - row)
-                    .unwrap_or(
-                        self.config.glyphs[(hash % self.config.glyphs.len() as u64) as usize],
-                    );
+                let word =
+                    self.words
+                        .glyph(&self.config.words, column, stream.salt, head_row - row);
+                let glyph = word.unwrap_or(
+                    self.config.glyphs[(hash % self.config.glyphs.len() as u64) as usize],
+                );
+                // Every letter receives the same bright treatment as the head.
+                // The surrounding random glyphs retain the stream's fading trail.
+                let intensity = if word.is_some() {
+                    let head_remaining = stream.length * 256 - stream.head % 256;
+                    (head_remaining * 255 / (stream.length * 256)) * self.config.intensity / 1000
+                } else {
+                    intensity
+                };
                 frame.set(
                     column as u16,
                     row as u16,
                     Cell {
                         glyph,
                         intensity: intensity as u8,
-                        emphasis: row == head_row,
+                        emphasis: word.is_some() || row == head_row,
                     },
                 );
             }
@@ -192,7 +200,7 @@ mod word_style_tests {
     use rand_chacha::rand_core::SeedableRng;
 
     #[test]
-    fn words_use_the_streams_brightness_and_head_emphasis() {
+    fn every_word_letter_uses_the_heads_brightness_and_highlight() {
         let size = GridSize::new(40, 20).unwrap();
         let config = EffectConfig::new(1.6, 0.35, 1.0, "01")
             .unwrap()
@@ -202,24 +210,43 @@ mod word_style_tests {
         rain.resize(size);
         let mut words = Frame::new(size);
         let mut plain = Frame::new(size);
-        for _ in 0..180 {
+        let mut ready = false;
+        for _ in 0..360 {
             rain.step();
+            words.clear();
+            rain.render(&mut words);
+            if words
+                .cells()
+                .iter()
+                .filter(|cell| {
+                    matches!(
+                        cell.glyph.as_char(),
+                        'a' | 'n' | 'y' | 't' | 'h' | 'i' | 'g'
+                    )
+                })
+                .count()
+                == 8
+            {
+                ready = true;
+                break;
+            }
         }
-        rain.render(&mut words);
-        // Unbind the phrase without changing any stream's state or settings.
+        assert!(ready, "the complete word never appeared");
         rain.words.resize();
         rain.render(&mut plain);
         let mut changed = 0;
-        for (word, ordinary) in words.cells().iter().zip(plain.cells()) {
-            assert_eq!(word.intensity, ordinary.intensity);
-            assert_eq!(word.emphasis, ordinary.emphasis);
+        for (index, (word, ordinary)) in words.cells().iter().zip(plain.cells()).enumerate() {
             if word.glyph != ordinary.glyph {
+                let column = index % usize::from(size.columns());
+                let head = rain.streams[column].head as usize / 256;
+                let head_cell = plain.cells()[head * usize::from(size.columns()) + column];
+                assert_eq!(word.intensity, head_cell.intensity);
+                assert!(word.emphasis, "a word letter lost its bright highlight");
                 changed += 1;
+            } else {
+                assert_eq!(word, ordinary, "ordinary rain styling changed");
             }
         }
-        assert!(
-            changed > 0,
-            "no word glyphs were present during the style check"
-        );
+        assert_eq!(changed, 8);
     }
 }

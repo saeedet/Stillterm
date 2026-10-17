@@ -31,7 +31,7 @@ impl Glyph {
 pub struct Cell {
     pub glyph: Glyph,
     pub intensity: u8,
-    /// Highlights a stream head; renderers may ignore this presentation hint.
+    /// Highlights stream heads and complete word segments; adapters may ignore it.
     pub emphasis: bool,
 }
 

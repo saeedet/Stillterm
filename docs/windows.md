@@ -62,8 +62,8 @@ Settings include theme, speed, density, brightness, FPS, character size, seed,
 custom characters, and optional words/phrases. Enter one phrase per line in
 **Words** and choose **Word frequency**. Empty text disables phrases. Up to 16
 phrases of 64 printable, single-column characters are supported. Words run vertically
-inside falling streams, using the same colors and fading as ordinary rain; phrases
-taller than the view are skipped. Theme changes
+inside falling streams. Every letter uses the bright stream-head highlight while
+the surrounding trail fades normally; phrases taller than the view are skipped. Theme changes
 preserve phrases and frequency while resetting visual values to the preset.
 The phrase controls have automated checks; manual Windows validation of this new
 feature remains pending.
