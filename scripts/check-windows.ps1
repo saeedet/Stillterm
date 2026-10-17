@@ -16,8 +16,19 @@ public static class StilltermPreviewTest {
         public IntPtr LParam; public uint Time; public Point Pt; public uint Private;
     }
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern IntPtr CreateWindowExW(uint ex, string cls, string title, uint style, int x, int y, int w, int h, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr data);
-    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern bool SetWindowTextW(IntPtr hwnd, string text);
-    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr hwnd, StringBuilder text, int length);
+    // The settings controls belong to another process. Send WM_SETTEXT and
+    // WM_GETTEXT explicitly; Set/GetWindowText only support local edit controls.
+    [DllImport("user32.dll", EntryPoint="SendMessageW", CharSet=CharSet.Unicode)] static extern IntPtr SendText(IntPtr hwnd, uint msg, UIntPtr w, string text);
+    [DllImport("user32.dll", EntryPoint="SendMessageW", CharSet=CharSet.Unicode)] static extern IntPtr ReadText(IntPtr hwnd, uint msg, UIntPtr w, StringBuilder text);
+    public static void SetControlText(IntPtr hwnd, string text) {
+        if (SendText(hwnd, 0x000C, UIntPtr.Zero, text) == IntPtr.Zero)
+            throw new InvalidOperationException("Cannot set test control text");
+    }
+    public static string ControlText(IntPtr hwnd) {
+        var text = new StringBuilder(8193);
+        ReadText(hwnd, 0x000D, (UIntPtr)text.Capacity, text);
+        return text.ToString();
+    }
     [DllImport("user32.dll")] public static extern bool DestroyWindow(IntPtr hwnd);
     [DllImport("user32.dll")] static extern bool PeekMessageW(out Msg msg, IntPtr hwnd, uint min, uint max, uint remove);
     [DllImport("user32.dll")] static extern bool TranslateMessage(ref Msg msg);
@@ -115,12 +126,11 @@ try {
             $frequency = [StilltermPreviewTest]::GetDlgItem($window, 11)
             if ($wordField -eq [IntPtr]::Zero -or $frequency -eq [IntPtr]::Zero) { throw 'Phrase controls are missing' }
             if ($selection -eq 0) {
-                $loadedWords = [System.Text.StringBuilder]::new(1024)
-                [StilltermPreviewTest]::GetWindowTextW($wordField, $loadedWords, 1024) | Out-Null
-                if ($loadedWords.ToString() -ne "anything`r`nwake up") { throw 'Phrases did not reload in a new process' }
+                $loadedWords = [StilltermPreviewTest]::ControlText($wordField)
+                if ($loadedWords -ne "anything`r`nwake up") { throw 'Phrases did not reload in a new process' }
                 if ([StilltermPreviewTest]::SendMessageW($frequency, 0x0147, [UIntPtr]::Zero, [IntPtr]::Zero).ToInt64() -ne 2) { throw 'Word frequency did not reload' }
             }
-            [StilltermPreviewTest]::SetWindowTextW($wordField, "anything`r`nwake up") | Out-Null
+            [StilltermPreviewTest]::SetControlText($wordField, "anything`r`nwake up") | Out-Null
             [StilltermPreviewTest]::SendMessageW($frequency, 0x014E, [UIntPtr]2, [IntPtr]::Zero) | Out-Null
             [StilltermPreviewTest]::SendMessageW($combo, 0x014E, [UIntPtr]$selection, [IntPtr]::Zero) | Out-Null
             [StilltermPreviewTest]::SendMessageW($window, 0x0111, [UIntPtr]65546, $combo) | Out-Null
@@ -150,7 +160,7 @@ try {
             throw 'Saved Monochrome theme did not reload'
         }
         [StilltermPreviewTest]::SendMessageW($combo, 0x014E, [UIntPtr]1, [IntPtr]::Zero) | Out-Null
-        [StilltermPreviewTest]::SetWindowTextW([StilltermPreviewTest]::GetDlgItem($window, 27), 'changed') | Out-Null
+        [StilltermPreviewTest]::SetControlText([StilltermPreviewTest]::GetDlgItem($window, 27), 'changed') | Out-Null
         [StilltermPreviewTest]::SendMessageW($window, 0x0111, [UIntPtr]2, [IntPtr]::Zero) | Out-Null
         [StilltermPreviewTest]::Pump(300)
         if (-not $process.WaitForExit(5000)) { throw 'Cancel did not close settings' }
