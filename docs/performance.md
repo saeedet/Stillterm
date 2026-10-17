@@ -29,7 +29,7 @@ terminal emulator's CPU, GPU, font rendering, and memory. These baseline figures
 
 ## Dense Matrix development measurements
 
-Measured on 2026-10-18 with the implementation at `10e2e70`: Apple M3,
+The first dense preset (build 10) was measured on 2026-10-18 at `10e2e70`: Apple M3,
 macOS 27.0.1 (26A434), Rust 1.88.0, release profile, seed 42, Dense Matrix defaults
 (speed `1.2`, density `0.95`, intensity `1.0`). These short local measurements
 are observations, not hardware requirements or installed-screensaver guarantees.
@@ -57,6 +57,31 @@ start/stop cycles, with 0.1 MiB growth from the warm baseline. Asynchronous grap
 cleanup caused temporary growth of about 194 MiB; settled usage and transient
 peaks must be distinguished. Longer sessions, installed full-screen playback,
 additional displays, Windows rendering, and energy use still need measurement.
+
+### Layered Mac rendering (build 11)
+
+The revised Mac preset uses three independently seeded grids. At base size 10,
+font sizes are 6.5, 8.5, and 11.5 points; distant layers move more slowly and use
+lower brightness. The near layer owns the user's words. One Retina canvas
+composites a shared background bitmap at logical resolution, bounded to four
+million pixels, with the two distant layers refreshed at up to 15 FPS.
+
+On the same M3/macOS setup, a 1432×849-point preview measured 35.2% of one core at
+30 draws/second over five seconds after two seconds of warm-up. The near grid was
+179×61; its visible-cell percentage describes only that grid, not the overlapping
+background. The background updated 10 times/second and used a 4.6 MiB bitmap.
+The process footprint was 174.8 MiB and peak RSS 93.8 MiB. Seed was 42, words `FREE`,
+frequency Frequent. A drawing comparison found 0.24% of lit pixels differed by
+more than 16/255 between batched and per-cell drawing, within the 5% allowance
+for antialiasing and overlapping halos.
+
+After 12 layered start/stop cycles at 1600×900 points, footprint settled at
+33.1 MiB with no growth from the warm baseline; transient growth reached about
+149 MiB during asynchronous graphics cleanup. Tests also check independent grids,
+resize through zero dimensions, sleep/wake, and release of the shared bitmap.
+Installed long sessions, other displays, and energy use remain unmeasured. These
+figures replace build 10's rendering figures for the current Mac preset; Windows
+and terminal Dense Matrix still use one grid.
 
 ## Reproduce
 

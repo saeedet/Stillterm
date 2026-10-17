@@ -55,11 +55,16 @@ preview are skipped; try full-screen preview or a shorter word. Save applies the
 change; Cancel preserves the previous settings.
 The text stays in local preferences.
 
-Build 10 adds **Dense Matrix**: screen-height trails, dim background streams, and
-character size `10`. Selecting another theme restores size `18`; adjust the size
-after choosing a theme. Phrases and frequency are preserved. The denser preset's
-Mac renderer batches glyphs by font and color, retaining per-cell clipping for
-unusual fallback characters. See [performance measurements](performance.md).
+Build 11 gives **Dense Matrix** three overlapping depth layers. Small, slower,
+softer characters sit behind larger, brighter streams and glowing heads. Trails
+remain fuller near the top and fade into black toward the bottom. Words appear
+only in the near layer, using the same progressive reveal and ordered fade.
+
+Selecting Dense Matrix sets base character size `10`; another theme restores `18`.
+Adjust size after choosing a theme. Phrases and frequency are preserved. The Mac
+renderer batches glyphs by font and color, retaining clipping for unusual fallback
+characters. All three grids share one canvas; the two distant layers share a
+bounded bitmap refreshed at up to 15 FPS. See [performance measurements](performance.md).
 
 The current build is for local evaluation. The disk image submitted for
 notarization on 2026-10-17 is the preserved build 5, without phrases; the current build needs
@@ -90,7 +95,8 @@ Preference tests use disposable, isolated domains and a separate writer process
 to check switching from Matrix to Monochrome and back. The pixel check verifies
 that the Matrix theme produces green glyphs through Core Text. A native frame is
 saved at `target/macos/preview.png` for inspection. Dense checks also compare the
-batched image with ordinary Core Text drawing, report large-window CPU/frame rate,
+batched image with ordinary Core Text drawing, verify three independent grids,
+resize and sleep cleanup, report large-window CPU/frame rate,
 and repeat the retained-view memory check using Dense Matrix. These are standalone
 host measurements; installed full-screen and longer-session validation remain pending.
 

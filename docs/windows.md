@@ -68,6 +68,8 @@ are skipped. Theme changes
 preserve phrases and frequency while resetting visual values to the preset.
 **Dense Matrix** uses screen-height trails and sets character size to `10` when
 selected; another theme restores `18`. Adjust size after choosing a theme.
+Windows currently renders Dense Matrix on one grid. The Mac version's three
+font-size layers and halo remain future Windows work.
 The new phrase controls and dense preset have automated checks; manual Windows
 validation and dense rendering performance measurements remain pending.
 Save validates every field and replaces the per-user TOML file; Cancel changes

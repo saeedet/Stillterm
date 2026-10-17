@@ -110,9 +110,12 @@ stillterm --theme dense-matrix
 stillterm --config examples/dense-matrix.toml
 ```
 
-This preset uses long trails scaled to the grid height, dimmer background streams,
-and scattered pale heads (speed `1.2`, density `0.95`, intensity `1.0`). Native theme
-selection sets character size to `10`; adjust it after selecting the preset.
+This preset uses long trails scaled to the grid height and scattered pale heads
+(speed `1.2`, density `0.95`, intensity `1.0`). On macOS, three overlapping layers
+vary character size, speed, and brightness, with soft distant rain, glowing near
+heads, and a fade toward the bottom. Terminal and Windows rendering use one grid.
+Native theme selection sets the base character size to `10`; adjust it after
+selecting the preset.
 In a terminal, use the terminal's font settings to fit more columns and rows.
 Dense rendering costs more than the sparse presets; see [local measurements](docs/performance.md).
 
