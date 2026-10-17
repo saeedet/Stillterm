@@ -17,12 +17,13 @@ has been published.
 - Experimental Hyprland launcher with one Foot window per monitor, input
   dismissal, scoped cleanup, and optional standalone Hypridle setup.
 - Automated platform checks and temporary CI development artifacts.
+- Verified Developer ID signing for the universal macOS bundle and disk image;
+  the first package has been submitted to Apple for notarization.
 
 ### Fixed
 
 - macOS disk-image packaging checks each required architecture separately for
   compatibility with the installed Xcode tools.
-
 - macOS black previews and stale theme preferences across screensaver hosts.
 - Drawing resources retained by stopped macOS views; build 5 releases its canvas
   and passes the retained-view memory regression check.
@@ -40,6 +41,7 @@ has been published.
   physical Intel Macs, and Linux desktop acceptance still need testing.
 - Omarchy 4.0.4 has a manual preview path only; automatic idle replacement is
   unsupported. Stillterm does not implement session locking.
-- Paid signing, notarization, and public binary distribution are deferred.
+- macOS notarization and final downloaded installation checks remain pending.
+  Windows signing and the first public binary release are also pending.
 
 See [platform support](docs/platform-support.md) for the detailed validation record.

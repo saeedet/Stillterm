@@ -2,8 +2,10 @@
 
 The terminal application and macOS/Windows screensaver development builds are
 implemented. The experimental Hyprland adapter supports manual preview and optional
-Hypridle integration; automatic Omarchy 4 integration remains unsupported. Paid signing and public
-binary publishing are deferred; source development does not require them.
+Hypridle integration; automatic Omarchy 4 integration remains unsupported. macOS
+Developer ID signing is configured and the first notarization submission is pending.
+Public binary publishing and Windows signing remain pending; source development
+does not require signing credentials.
 Local validation used macOS 14.6.1 on Apple M3. Rust tests and PTY lifecycle checks
 passed there; Windows/Linux compilation checks and native CI complement this but
 do not replace interactive testing on those systems.

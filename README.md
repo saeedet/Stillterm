@@ -12,8 +12,10 @@ It has no background service or browser runtime.
 terminal. An animation recording is planned for the first release.*
 
 **Status:** Terminal application plus macOS and Windows screensaver development
-builds, plus an experimental Hyprland adapter. Paid signing and public binary releases
-are deferred while development continues. Stillterm does not lock your session.
+builds, plus an experimental Hyprland adapter. macOS Developer ID signing is
+configured and the first package has been submitted for notarization. Public binary
+releases are pending; Windows builds remain unsigned. Stillterm does not lock
+your session.
 
 ## Install
 

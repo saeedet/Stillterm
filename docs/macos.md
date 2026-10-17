@@ -140,11 +140,18 @@ documents the underlying host issue and dismissal signal.
 
 ## Public distribution
 
-Paid signing, notarization, and binary publishing are deferred while platform
-development continues. They are not required to build from source or contribute.
+Developer ID signing and Keychain-based notarization credentials are configured
+for the first macOS prerelease. Source builds and contributions do not require a
+paid account.
 
-Local builds are ad-hoc signed. They are suitable for development, not a substitute
-for Developer ID signing and notarization. Do not remove quarantine or disable
+On 2026-10-17, the universal 0.1.0 / build 5 bundle and disk image passed Developer
+ID signature verification. Native drawing, settings, lifecycle, and retained-view
+memory checks passed on arm64 with macOS 27.0.1 (26A434) and Xcode 27.0. The disk
+image has been submitted to Apple; notarization, stapling, and final downloaded
+installation checks are pending. Nothing has been published as a GitHub Release.
+
+Local builds are ad-hoc signed by default. They are suitable for development,
+not a substitute for Developer ID signing and notarization. Do not remove quarantine or disable
 Gatekeeper to distribute an unnotarized download.
 
 The intended download is `Stillterm.dmg` on GitHub Releases. Users can install
@@ -156,7 +163,17 @@ Keychain, and notarization credentials stored in a Keychain profile. Keep privat
 keys and credentials out of Git. See [Apple membership](https://developer.apple.com/support/compare-memberships/)
 and [Developer ID](https://developer.apple.com/developer-id/).
 
-With that signing identity installed, build and package:
+To configure notarization, create an app-specific password in your Apple Account
+and store it directly in Keychain. Substitute the enrolled account email and Team
+ID below. The command prompts securely for the app-specific password; keep it out
+of shell arguments, repository files, and chat.
+
+```sh
+xcrun notarytool store-credentials stillterm-notary \
+  --apple-id 'YOUR_APPLE_ACCOUNT_EMAIL' --team-id YOUR_TEAM_ID
+```
+
+With the signing identity installed, build and package:
 
 ```sh
 export STILLTERM_SIGN_IDENTITY='Developer ID Application: Your Name (TEAMID)'
@@ -176,9 +193,9 @@ shasum -a 256 target/macos/Stillterm.dmg
 ```
 
 Publish only after notarization reports **Accepted**, stapling passes, and clean-Mac
-installation is tested. Credentials stay outside the repository. These distribution
-steps remain unverified until a maintainer configures a signing identity. Then
-create a versioned GitHub Release with the verified disk image, its SHA-256
+installation is tested. Credentials stay outside the repository. Signing and native
+host checks are verified locally; Apple approval and final downloaded installation are separate checks. Then create
+a versioned GitHub Release with the verified disk image, its SHA-256
 checksum, installation instructions, and the exact tested macOS versions. Start
 with a prerelease while broader compatibility testing is pending. CI artifacts
 are development builds and are not automatically published as GitHub Releases.
