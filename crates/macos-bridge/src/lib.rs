@@ -46,6 +46,7 @@ fn theme(value: u32) -> Option<Theme> {
     match value {
         0 => Some(Theme::Monochrome),
         1 => Some(Theme::Matrix),
+        2 => Some(Theme::DenseMatrix),
         _ => None,
     }
 }
@@ -146,6 +147,7 @@ pub unsafe extern "C" fn st_create_words(
             options.intensity,
             characters,
         )
+        .map(|config| config.with_theme_style(theme))
         .and_then(|config| config.with_words(words, frequency))
         .ok()?;
         Some(Box::into_raw(Box::new(StEngine {
@@ -333,6 +335,37 @@ mod tests {
             assert!(st_create(1, 1, bad, ptr::null(), 0).is_null());
             assert_eq!(st_advance(ptr::null_mut(), 0), INVALID);
             st_destroy(ptr::null_mut());
+        }
+    }
+    #[test]
+    fn dense_theme_defaults_and_long_trails_cross_the_bridge() {
+        // SAFETY: serialized live handle and correctly sized caller-owned buffers.
+        unsafe {
+            let mut options = options();
+            assert_eq!(st_defaults(2, &mut options), OK);
+            let handle = st_create(120, 60, options, ptr::null(), 0);
+            assert!(!handle.is_null());
+            let mut core = Engine::rain(
+                GridSize::new(120, 60).unwrap(),
+                Theme::DenseMatrix.rain_config(),
+                42,
+            );
+            let mut cells = vec![StCell::default(); 7200];
+            for _ in 0..30 {
+                assert_eq!(st_advance(handle, 100_000_000), OK);
+                for _ in 0..3 {
+                    core.step();
+                }
+            }
+            assert_eq!(st_copy_frame(handle, cells.as_mut_ptr(), cells.len()), OK);
+            for (native, rust) in cells.iter().zip(core.frame().cells()) {
+                assert_eq!(native.scalar, rust.glyph.as_char() as u32);
+                assert_eq!(
+                    [native.red, native.green, native.blue],
+                    Theme::DenseMatrix.rgb(rust.intensity, rust.emphasis)
+                );
+            }
+            st_destroy(handle);
         }
     }
     #[test]

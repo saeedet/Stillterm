@@ -92,10 +92,11 @@ unsafe fn read_form(form: &Form) -> Result<Settings, String> {
                 .map_err(|_| format!("Invalid {}", LABELS[i]))
         };
         let settings = Settings {
-            theme: if SendMessageW(form.theme, CB_GETCURSEL, 0, 0) == 1 {
-                "matrix"
-            } else {
-                "monochrome"
+            theme: match SendMessageW(form.theme, CB_GETCURSEL, 0, 0) {
+                0 => "monochrome",
+                1 => "matrix",
+                2 => "dense-matrix",
+                _ => return Err("Choose a theme".into()),
             }
             .into(),
             speed: number(0)?,
@@ -171,10 +172,10 @@ unsafe fn message(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> LRESULT {
                         PostMessageW(hwnd, WM_CLOSE, 0, 0);
                     }
                     10 if notification == CBN_SELCHANGE as usize => {
-                        let theme = if SendMessageW((*form).theme, CB_GETCURSEL, 0, 0) == 1 {
-                            Theme::Matrix
-                        } else {
-                            Theme::Monochrome
+                        let theme = match SendMessageW((*form).theme, CB_GETCURSEL, 0, 0) {
+                            1 => Theme::Matrix,
+                            2 => Theme::DenseMatrix,
+                            _ => Theme::Monochrome,
                         };
                         let preset = theme.rain_defaults();
                         for (index, value) in [preset.speed, preset.density, preset.intensity]
@@ -187,6 +188,10 @@ unsafe fn message(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> LRESULT {
                             );
                         }
                         SetWindowTextW((&(*form).fields)[6], wide("").as_ptr());
+                        SetWindowTextW(
+                            (&(*form).fields)[4],
+                            wide(&theme.character_size().to_string()).as_ptr(),
+                        );
                     }
                     _ => {}
                 }
@@ -361,13 +366,17 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
                 270,
                 150,
             )?;
-            for theme in ["Monochrome", "Matrix"] {
+            for theme in ["Monochrome", "Matrix", "Dense Matrix"] {
                 SendMessageW(form.theme, CB_ADDSTRING, 0, wide(theme).as_ptr() as isize);
             }
             SendMessageW(
                 form.theme,
                 CB_SETCURSEL,
-                usize::from(settings.theme == "matrix"),
+                match settings.theme.as_str() {
+                    "matrix" => 1,
+                    "dense-matrix" => 2,
+                    _ => 0,
+                },
                 0,
             );
             let values = [

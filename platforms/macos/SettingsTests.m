@@ -66,6 +66,15 @@ int main(void) {
         loaded = [[StilltermSettings alloc] initWithDefaults:defaults];
         require([loaded.words isEqual:@"anything\nwake up"] && loaded.options.word_frequency == 2,
             "options save persists multiline phrases");
+        [theme selectItemAtIndex:2]; [NSApp sendAction:theme.action to:theme.target from:theme];
+        require([[(NSTextField *)fields[@"Character size"] stringValue] isEqual:@"10"] &&
+            [[(NSTextField *)fields[@"Density"] stringValue] isEqual:@"0.95"], "dense preset uses small characters and high density");
+        [save performClick:nil];
+        loaded = [[StilltermSettings alloc] initWithDefaults:defaults];
+        require(loaded.options.theme == 2 && loaded.fontSize == 10 && [loaded.words isEqual:@"anything\nwake up"] &&
+            loaded.options.word_frequency == 2, "dense theme round trip preserves words");
+        [theme selectItemAtIndex:1]; [NSApp sendAction:theme.action to:theme.target from:theme];
+        require([[(NSTextField *)fields[@"Character size"] stringValue] isEqual:@"18"], "leaving dense restores regular character size");
         __block BOOL canceled = NO;
         StilltermOptionsController *cancelController = [[StilltermOptionsController alloc] initWithSettings:loaded didApply:^{ canceled = YES; }];
         ((NSTextView *)[cancelController valueForKey:@"words"]).string = @"changed";

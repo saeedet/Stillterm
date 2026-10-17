@@ -25,6 +25,42 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 - (void)drawRect:(NSRect)rect { [self.owner drawFrameInRect:rect canvas:self]; }
 @end
 
+// Dense frames share fonts and colors across thousands of cells. Draw each
+// font/color group in one Core Text call, retaining buffers between frames.
+@interface STGlyphBatch : NSObject
+@property(nonatomic, strong) id font;
+@property(nonatomic, strong) NSMutableData *glyphs, *positions;
+@property(nonatomic) NSUInteger count;
+@property(nonatomic) uint32_t color;
+- (void)addGlyph:(CGGlyph)glyph at:(CGPoint)position;
+@end
+@implementation STGlyphBatch
+- (void)addGlyph:(CGGlyph)glyph at:(CGPoint)position {
+    if (self.count >= self.glyphs.length / sizeof(CGGlyph)) {
+        NSUInteger capacity = MAX(32, self.count * 2);
+        if (!self.glyphs) self.glyphs = [NSMutableData data];
+        if (!self.positions) self.positions = [NSMutableData data];
+        self.glyphs.length = capacity * sizeof(CGGlyph);
+        self.positions.length = capacity * sizeof(CGPoint);
+    }
+    ((CGGlyph *)self.glyphs.mutableBytes)[self.count] = glyph;
+    ((CGPoint *)self.positions.mutableBytes)[self.count++] = position;
+}
+@end
+@interface STGlyphFont : NSObject
+@property(nonatomic, strong) id font;
+@property(nonatomic, strong) NSMutableDictionary<NSNumber *, STGlyphBatch *> *colors;
+@end
+@implementation STGlyphFont
+@end
+@interface STGlyphInfo : NSObject
+@property(nonatomic) CGGlyph glyph;
+@property(nonatomic) CGPoint offset;
+@property(nonatomic, strong) STGlyphFont *font;
+@end
+@implementation STGlyphInfo
+@end
+
 @implementation StilltermView {
     StEngine *_engine;
     StilltermCanvasView *_canvas;
@@ -33,11 +69,16 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     id _dismissObserver;
     NSMutableData *_cells, *_nextCells;
     NSMutableDictionary<NSNumber *, id> *_lines;
+    NSMutableDictionary<NSNumber *, STGlyphInfo *> *_denseGlyphs;
+    NSMutableArray<STGlyphFont *> *_denseFonts;
+    NSMutableArray<STGlyphBatch *> *_denseBatches;
     NSFont *_font;
     uint32_t _columns, _rows;
     CGFloat _cellWidth, _cellHeight;
     CFTimeInterval _lastTime;
+    NSUInteger _drawnFrames;
     BOOL _running, _sleeping, _failed, _reportedFrame;
+    BOOL _disableBatchDrawing; // Native host checks compare against the clipped line path.
 }
 - (instancetype)initWithFrame:(NSRect)frame isPreview:(BOOL)isPreview {
     if ((self = [super initWithFrame:frame isPreview:isPreview])) {
@@ -67,6 +108,7 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     _canvas = nil;
     st_destroy(_engine); _engine = NULL;
     _cells = nil; _nextCells = nil; _lines = nil; _font = nil;
+    _denseGlyphs = nil; _denseFonts = nil; _denseBatches = nil;
     _columns = 0; _rows = 0; _lastTime = 0; _reportedFrame = NO;
 }
 - (void)reloadSettings {
@@ -125,6 +167,7 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 - (void)setFrameSize:(NSSize)size {
     [super setFrameSize:size];
     _font = nil; _lines = nil;
+    _denseGlyphs = nil; _denseFonts = nil; _denseBatches = nil;
     _lastTime = 0;
     self.needsDisplay = YES;
     _canvas.needsDisplay = YES;
@@ -139,6 +182,8 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
         _cellWidth = ceil([@"M" sizeWithAttributes:@{NSFontAttributeName: _font}].width);
         _cellHeight = ceil(_font.ascender - _font.descender + _font.leading + 2);
         _lines = [NSMutableDictionary dictionary];
+        _denseGlyphs = [NSMutableDictionary dictionary];
+        _denseFonts = [NSMutableArray array]; _denseBatches = [NSMutableArray array];
     }
     double columns = ceil(MAX(0, NSWidth(self.bounds)) / _cellWidth);
     double rows = ceil(MAX(0, NSHeight(self.bounds)) / _cellHeight);
@@ -211,12 +256,48 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     }
     return (__bridge CTLineRef)cached;
 }
+- (STGlyphInfo *)denseGlyphForScalar:(uint32_t)scalar {
+    NSNumber *key = @(scalar);
+    STGlyphInfo *info = _denseGlyphs[key];
+    if (info) return info;
+    info = [STGlyphInfo new]; _denseGlyphs[key] = info;
+    CTLineRef line = [self lineForScalar:scalar];
+    CFArrayRef runs = CTLineGetGlyphRuns(line);
+    if (CFArrayGetCount(runs) != 1) return info;
+    CTRunRef run = CFArrayGetValueAtIndex(runs, 0);
+    if (CTRunGetGlyphCount(run) != 1) return info;
+    CTFontRef font = CFDictionaryGetValue(CTRunGetAttributes(run), kCTFontAttributeName);
+    if (!font) return info;
+    CGGlyph glyph; CGPoint position;
+    CTRunGetGlyphs(run, CFRangeMake(0, 1), &glyph);
+    CTRunGetPositions(run, CFRangeMake(0, 1), &position);
+    position.x += (_cellWidth - CTLineGetTypographicBounds(line, NULL, NULL, NULL)) / 2;
+    position.y += -_font.descender + 1;
+    CGRect bounds = CTFontGetBoundingRectsForGlyphs(font, kCTFontOrientationDefault, &glyph, NULL, 1);
+    bounds = CGRectOffset(bounds, position.x, position.y);
+    // Keep per-cell clipping for unusual fallback glyphs that cross a cell edge.
+    if (CGRectGetMinX(bounds) < 0 || CGRectGetMaxX(bounds) > _cellWidth ||
+        CGRectGetMinY(bounds) < 0 || CGRectGetMaxY(bounds) > _cellHeight) return info;
+    STGlyphFont *group;
+    for (STGlyphFont *candidate in _denseFonts) {
+        if (CFEqual((__bridge CTFontRef)candidate.font, font)) { group = candidate; break; }
+    }
+    if (!group) {
+        group = [STGlyphFont new]; group.font = (__bridge id)font;
+        group.colors = [NSMutableDictionary dictionary]; [_denseFonts addObject:group];
+    }
+    info.font = group; info.glyph = glyph; info.offset = position;
+    return info;
+}
 - (void)drawFrameInRect:(NSRect)rect canvas:(NSView *)canvas {
+    _drawnFrames++;
     [NSColor.blackColor setFill]; NSRectFill(rect);
     if (!_engine || !_cells || !_font) return;
     CGContextRef context = NSGraphicsContext.currentContext.CGContext;
     CGContextSaveGState(context);
     CGContextSetTextMatrix(context, CGAffineTransformIdentity);
+    BOOL dense = _settings.options.theme == 2 && !_disableBatchDrawing;
+    for (STGlyphBatch *batch in _denseBatches) batch.count = 0;
     const StCell *cells = _cells.bytes;
     for (uint32_t row = 0; row < _rows; row++) {
         CGFloat y = NSHeight(self.bounds) - (row + 1) * _cellHeight;
@@ -226,6 +307,19 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
             if (!cell.visible) continue;
             NSRect box = NSMakeRect(column * _cellWidth, y, _cellWidth, _cellHeight);
             if (![canvas needsToDrawRect:box]) continue;
+            if (dense) {
+                STGlyphInfo *glyph = [self denseGlyphForScalar:cell.scalar];
+                if (glyph.font) {
+                    uint32_t color = ((uint32_t)cell.red << 16) | ((uint32_t)cell.green << 8) | cell.blue;
+                    STGlyphBatch *batch = glyph.font.colors[@(color)];
+                    if (!batch) {
+                        batch = [STGlyphBatch new]; batch.font = glyph.font.font; batch.color = color;
+                        glyph.font.colors[@(color)] = batch; [_denseBatches addObject:batch];
+                    }
+                    [batch addGlyph:glyph.glyph at:CGPointMake(box.origin.x + glyph.offset.x, y + glyph.offset.y)];
+                    continue;
+                }
+            }
             CGContextSaveGState(context);
             CGContextClipToRect(context, NSRectToCGRect(box));
             CGContextSetRGBFillColor(context, cell.red / 255.0, cell.green / 255.0, cell.blue / 255.0, 1);
@@ -235,6 +329,12 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
             CTLineDraw(line, context);
             CGContextRestoreGState(context);
         }
+    }
+    for (STGlyphBatch *batch in _denseBatches) {
+        if (!batch.count) continue;
+        CGContextSetRGBFillColor(context, (batch.color >> 16) / 255.0,
+            ((batch.color >> 8) & 255) / 255.0, (batch.color & 255) / 255.0, 1);
+        CTFontDrawGlyphs((__bridge CTFontRef)batch.font, batch.glyphs.bytes, batch.positions.bytes, batch.count, context);
     }
     CGContextRestoreGState(context);
 }

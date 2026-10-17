@@ -55,6 +55,7 @@ impl Settings {
                 &self.characters
             },
         )
+        .map(|effect| effect.with_theme_style(theme))
         .and_then(|effect| effect.with_words(&self.words, self.word_frequency.parse()?))
         .map_err(|e| e.to_string())?;
         Ok((theme, effect))
@@ -98,7 +99,7 @@ mod tests {
     use super::*;
     #[test]
     fn presets_and_overrides_validate() {
-        for theme in ["monochrome", "matrix"] {
+        for theme in ["monochrome", "matrix", "dense-matrix"] {
             let settings =
                 Settings::parse(&format!("theme = '{theme}'\nseed = 18446744073709551615"))
                     .unwrap();

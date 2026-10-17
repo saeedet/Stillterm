@@ -2,6 +2,7 @@
 #import <Cocoa/Cocoa.h>
 #import <ScreenSaver/ScreenSaver.h>
 #import <QuartzCore/QuartzCore.h>
+#import "StilltermSettings.h"
 #include <mach/mach.h>
 
 static void require(BOOL condition, NSString *message) {
@@ -28,7 +29,8 @@ static double footprintMiB(void) {
 }
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
-        require(argc == 2, @"Usage: memory-host bundle");
+        require(argc == 2 || (argc == 3 && strcmp(argv[2], "--dense") == 0), @"Usage: memory-host bundle [--dense]");
+        BOOL dense = argc == 3;
         [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         [NSApp finishLaunching];
@@ -51,7 +53,14 @@ int main(int argc, const char *argv[]) {
                 // Give each retained instance its own backing layer, as a remote host can.
                 view.wantsLayer = YES;
                 [window.contentView addSubview:view];
-                [view startAnimation]; [view animateOneFrame]; pump(0.15);
+                [view startAnimation];
+                if (dense) {
+                    StilltermSettings *settings = [view valueForKey:@"settings"];
+                    StOptions options = settings.options;
+                    options.theme = 2; options.speed = 1.2; options.density = 0.95; options.intensity = 1;
+                    settings.options = options; settings.characters = @""; settings.fontSize = 10;
+                }
+                [view animateOneFrame]; pump(0.15);
                 require([view valueForKey:@"cells"] != nil, @"Active retained-view test must render");
                 [view stopAnimation]; [view animateOneFrame];
                 require([view valueForKey:@"cells"] == nil && !view.isAnimating, @"Stopped view stays idle");

@@ -10,7 +10,7 @@
 // Panics poison a handle (destroy it); invalid pointers/OOM are not recoverable.
 typedef struct StEngine StEngine;
 typedef struct {
-    uint32_t theme; // 0 monochrome, 1 Matrix
+    uint32_t theme; // 0 monochrome, 1 Matrix, 2 Dense Matrix
     uint64_t seed;
     double speed, density, intensity;
     uint32_t word_frequency; // 0 rare, 1 occasional, 2 frequent

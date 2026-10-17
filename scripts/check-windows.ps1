@@ -108,7 +108,8 @@ try {
 $testData = Join-Path ([System.IO.Path]::GetTempPath()) ("stillterm-" + [guid]::NewGuid())
 New-Item -ItemType Directory $testData | Out-Null
 try {
-    foreach ($selection in @(1, 0)) {
+    $previousSelection = $null
+    foreach ($selection in @(1, 2, 0)) {
         $start = [System.Diagnostics.ProcessStartInfo]::new($binary, '/c')
         $start.UseShellExecute = $false
         $start.Environment['APPDATA'] = $testData
@@ -119,13 +120,13 @@ try {
             $window = [StilltermPreviewTest]::SettingsWindow($process.Id)
             if ($window -eq [IntPtr]::Zero) { throw 'Settings window did not open' }
             $combo = [StilltermPreviewTest]::GetDlgItem($window, 10)
-            if ($selection -eq 0 -and [StilltermPreviewTest]::SendMessageW($combo, 0x0147, [UIntPtr]::Zero, [IntPtr]::Zero).ToInt64() -ne 1) {
-                throw 'Saved Matrix theme did not reload in a new process'
+            if ($null -ne $previousSelection -and [StilltermPreviewTest]::SendMessageW($combo, 0x0147, [UIntPtr]::Zero, [IntPtr]::Zero).ToInt64() -ne $previousSelection) {
+                throw 'Saved theme did not reload in a new process'
             }
             $wordField = [StilltermPreviewTest]::GetDlgItem($window, 27)
             $frequency = [StilltermPreviewTest]::GetDlgItem($window, 11)
             if ($wordField -eq [IntPtr]::Zero -or $frequency -eq [IntPtr]::Zero) { throw 'Phrase controls are missing' }
-            if ($selection -eq 0) {
+            if ($null -ne $previousSelection) {
                 $loadedWords = [StilltermPreviewTest]::ControlText($wordField)
                 if ($loadedWords -ne "anything`r`nwake up") { throw 'Phrases did not reload in a new process' }
                 if ([StilltermPreviewTest]::SendMessageW($frequency, 0x0147, [UIntPtr]::Zero, [IntPtr]::Zero).ToInt64() -ne 2) { throw 'Word frequency did not reload' }
@@ -138,7 +139,10 @@ try {
             [StilltermPreviewTest]::Pump(300)
             if (-not $process.WaitForExit(5000)) { throw 'Saving valid settings did not close the window' }
             $saved = Get-Content (Join-Path $testData 'Stillterm/screensaver.toml') -Raw
-            $expected = if ($selection -eq 1) { 'matrix' } else { 'monochrome' }
+            $expected = @('monochrome', 'matrix', 'dense-matrix')[$selection]
+            $expectedSize = if ($selection -eq 2) { '10' } else { '18' }
+            if (-not $saved.Contains('font_size = ' + $expectedSize)) { throw 'Theme character size was not persisted' }
+            $previousSelection = $selection
             if (-not $saved.Contains('theme = "' + $expected + '"')) { throw 'Theme was not persisted' }
             if (-not $saved.Contains('anything') -or -not $saved.Contains('wake up') -or -not $saved.Contains('word_frequency = "frequent"')) { throw 'Phrases or word frequency were not persisted' }
         } finally {

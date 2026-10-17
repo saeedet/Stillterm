@@ -83,7 +83,7 @@
         NSTextField *label = [NSTextField labelWithString:@"Theme"];
         label.frame = NSMakeRect(24, 596, 115, 24); [content addSubview:label];
         _theme = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(145, 594, 265, 28) pullsDown:NO];
-        [_theme addItemsWithTitles:@[@"Monochrome", @"Matrix"]];
+        [_theme addItemsWithTitles:@[@"Monochrome", @"Matrix", @"Dense Matrix"]];
         [_theme selectItemAtIndex:settings.options.theme];
         _theme.target = self; _theme.action = @selector(themeChanged:);
         _theme.accessibilityLabel = @"Theme";
@@ -141,6 +141,7 @@
     _fields[@"Speed"].stringValue = @(options.speed).stringValue;
     _fields[@"Density"].stringValue = @(options.density).stringValue;
     _fields[@"Brightness"].stringValue = @(options.intensity).stringValue;
+    _fields[@"Character size"].stringValue = _theme.indexOfSelectedItem == 2 ? @"10" : @"18";
     _fields[@"Characters"].stringValue = @"";
 }
 - (void)finish {

@@ -3,6 +3,7 @@
 #import <ScreenSaver/ScreenSaver.h>
 #import "StilltermSettings.h"
 #include <sys/resource.h>
+#include <mach/mach.h>
 
 // Invoke the dismissal handler locally; never broadcast a system notification
 // that could affect other running screensavers during tests.
@@ -40,6 +41,34 @@ static NSBitmapImageRep *snapshot(NSView *view) {
     NSBitmapImageRep *rep = [view bitmapImageRepForCachingDisplayInRect:view.bounds];
     [view cacheDisplayInRect:view.bounds toBitmapImageRep:rep];
     return rep;
+}
+static void compareDenseDrawing(ScreenSaverView *view) {
+    NSBitmapImageRep *batched = snapshot(view);
+    [view setValue:@YES forKey:@"disableBatchDrawing"];
+    NSBitmapImageRep *reference = snapshot(view);
+    [view setValue:@NO forKey:@"disableBatchDrawing"];
+    require(batched.pixelsWide == reference.pixelsWide && batched.pixelsHigh == reference.pixelsHigh &&
+        batched.bitsPerSample == 8 && reference.bitsPerSample == 8 && batched.samplesPerPixel == 4 &&
+        reference.samplesPerPixel == 4 && batched.bitmapFormat == reference.bitmapFormat,
+        @"Compare native bitmap formats");
+    NSUInteger lit = 0, changed = 0;
+    NSUInteger alpha = batched.bitmapFormat & NSBitmapFormatAlphaFirst ? 0 : 3;
+    for (NSInteger y = 0; y < batched.pixelsHigh; y++) {
+        const uint8_t *a = batched.bitmapData + y * batched.bytesPerRow;
+        const uint8_t *b = reference.bitmapData + y * reference.bytesPerRow;
+        for (NSInteger x = 0; x < batched.pixelsWide; x++) {
+            BOOL visible = NO, different = NO;
+            for (NSUInteger c = 0; c < 4; c++) if (c != alpha) {
+                visible |= MAX(a[x * 4 + c], b[x * 4 + c]) > 8;
+                different |= abs((int)a[x * 4 + c] - (int)b[x * 4 + c]) > 16;
+            }
+            lit += visible; changed += visible && different;
+        }
+    }
+    printf("Dense drawing comparison: %lu lit pixels, %.3f%% differ by more than 16/255\n",
+        (unsigned long)lit, lit ? changed * 100.0 / lit : 100.0);
+    require(lit > 100 && changed * 100 < lit * 5,
+        @"Batch drawing must preserve clipped Core Text glyphs, colors, and positions");
 }
 static BOOL containsGlowingPhrase(ScreenSaverView *view, const char *phrase) {
     NSData *data = [view valueForKey:@"cells"];
@@ -93,8 +122,10 @@ static NSUInteger visiblePixels(NSBitmapImageRep *rep, BOOL greenOnly) {
 
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
-        if (argc < 2) { fprintf(stderr, "Usage: preview-host bundle [--check [snapshot.png]]\n"); return 2; }
+        if (argc < 2) { fprintf(stderr, "Usage: preview-host bundle [--check|--dense|--measure-dense [snapshot.png]]\n"); return 2; }
         BOOL check = argc >= 3 && strcmp(argv[2], "--check") == 0;
+        BOOL measureDense = argc >= 3 && strcmp(argv[2], "--measure-dense") == 0;
+        BOOL dense = measureDense || (argc >= 3 && strcmp(argv[2], "--dense") == 0);
         [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         NSBundle *bundle = [NSBundle bundleWithPath:[NSString stringWithUTF8String:argv[1]]];
@@ -104,20 +135,59 @@ int main(int argc, const char *argv[]) {
         require([viewClass isSubclassOfClass:ScreenSaverView.class], @"Principal class must be a ScreenSaverView");
         STPreviewDelegate *delegate = [STPreviewDelegate new]; NSApp.delegate = delegate;
         [NSApp finishLaunching];
-        STRemoteVisibilityWindow *window = [[STRemoteVisibilityWindow alloc] initWithContentRect:NSMakeRect(120, 120, 800, 540)
+        NSSize surface = dense ? NSMakeSize(MIN(1440, NSWidth(NSScreen.mainScreen.visibleFrame) - 80),
+            MIN(900, NSHeight(NSScreen.mainScreen.visibleFrame) - 100)) : NSMakeSize(800, 500);
+        STRemoteVisibilityWindow *window = [[STRemoteVisibilityWindow alloc] initWithContentRect:NSMakeRect(40, 40, surface.width, surface.height + 40)
             styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable
             backing:NSBackingStoreBuffered defer:NO];
         window.title = @"Stillterm Preview"; window.releasedWhenClosed = NO; window.delegate = delegate;
-        ScreenSaverView *view = [[viewClass alloc] initWithFrame:NSMakeRect(0, 0, 800, 500) isPreview:YES];
+        ScreenSaverView *view = [[viewClass alloc] initWithFrame:NSMakeRect(0, 0, surface.width, surface.height) isPreview:YES];
         view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
         [window.contentView addSubview:view];
         NSButton *button = [NSButton buttonWithTitle:@"Options…" target:delegate action:@selector(options:)];
-        button.frame = NSMakeRect(680, 505, 100, 28); button.autoresizingMask = NSViewMinXMargin | NSViewMinYMargin;
+        button.frame = NSMakeRect(surface.width - 120, surface.height + 5, 100, 28); button.autoresizingMask = NSViewMinXMargin | NSViewMinYMargin;
         [window.contentView addSubview:button];
         delegate.window = window; delegate.saver = view;
         [window makeKeyAndOrderFront:nil];
         [NSApp activateIgnoringOtherApps:YES];
         [view startAnimation];
+        if (dense) {
+            // A temporary per-view demo; leave the user's saved theme and words intact.
+            StilltermSettings *settings = [view valueForKey:@"settings"];
+            StOptions options = settings.options;
+            options.theme = 2; options.speed = 1.2; options.density = 0.95; options.intensity = 1;
+            settings.options = options; settings.characters = @""; settings.fontSize = 10; settings.fps = 30;
+            view.animationTimeInterval = 1.0 / 30;
+            if (measureDense) {
+                pump(2.0);
+                struct rusage begin, end; getrusage(RUSAGE_SELF, &begin);
+                NSUInteger frames = [[view valueForKey:@"drawnFrames"] unsignedIntegerValue];
+                CFTimeInterval start = NSProcessInfo.processInfo.systemUptime;
+                pump(5.0); getrusage(RUSAGE_SELF, &end);
+                double elapsed = NSProcessInfo.processInfo.systemUptime - start;
+                double cpu = (end.ru_utime.tv_sec - begin.ru_utime.tv_sec) + (end.ru_utime.tv_usec - begin.ru_utime.tv_usec) / 1e6
+                           + (end.ru_stime.tv_sec - begin.ru_stime.tv_sec) + (end.ru_stime.tv_usec - begin.ru_stime.tv_usec) / 1e6;
+                task_vm_info_data_t info = {0}; mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+                require(task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&info, &count) == KERN_SUCCESS, @"Read footprint");
+                NSData *data = [view valueForKey:@"cells"]; const StCell *cells = data.bytes; NSUInteger visible = 0;
+                for (NSUInteger i = 0; i < data.length / sizeof(StCell); i++) visible += cells[i].visible != 0;
+                printf("Dense Matrix: %.0fx%.0f points, grid %ux%u; %.1f%% cells visible; %.2f%% of one CPU core; %.1f draws/s; footprint %.1f MiB; peak RSS %.1f MiB\n",
+                    NSWidth(view.bounds), NSHeight(view.bounds), [[view valueForKey:@"columns"] unsignedIntValue], [[view valueForKey:@"rows"] unsignedIntValue],
+                    data.length ? visible * 100.0 / (data.length / sizeof(StCell)) : 0,
+                    cpu / elapsed * 100, ([[view valueForKey:@"drawnFrames"] unsignedIntegerValue] - frames) / elapsed,
+                    info.phys_footprint / 1048576.0, end.ru_maxrss / 1048576.0);
+                require(data.length > 0 && visible > data.length / sizeof(StCell) / 2, @"Dense native preview fills most cells");
+                compareDenseDrawing(view);
+                if (argc >= 4) require([[snapshot(view) representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
+                    writeToFile:[NSString stringWithUTF8String:argv[3]] atomically:YES], @"Write dense snapshot");
+                [view stopAnimation];
+                require([view valueForKey:@"cells"] == nil && [view valueForKey:@"canvas"] == nil, @"Dense stop releases resources");
+                require([view valueForKey:@"denseBatches"] == nil && [view valueForKey:@"denseGlyphs"] == nil,
+                    @"Dense stop releases glyph caches and drawing buffers");
+                [window orderOut:nil];
+                return 0;
+            }
+        }
         if (!check) { [NSApp run]; return 0; }
 
         // Change only this view's in-memory settings; never write user preferences.
