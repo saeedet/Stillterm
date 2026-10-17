@@ -156,10 +156,17 @@ int main(int argc, const char *argv[]) {
             StilltermSettings *settings = [view valueForKey:@"settings"];
             StOptions options = settings.options;
             options.theme = 2; options.speed = 1.2; options.density = 0.95; options.intensity = 1;
+            if (measureDense) { options.seed = 42; options.word_frequency = 2; settings.words = @"FREE"; }
             settings.options = options; settings.characters = @""; settings.fontSize = 10; settings.fps = 30;
             view.animationTimeInterval = 1.0 / 30;
             if (measureDense) {
                 pump(2.0);
+                NSArray *layers = [view valueForKey:@"renderLayers"];
+                require(layers.count == 3, @"Dense Matrix has three independent depth grids");
+                for (NSUInteger i = 1; i < layers.count; i++) require(
+                    [[layers[i - 1] valueForKey:@"columns"] unsignedIntValue] > [[layers[i] valueForKey:@"columns"] unsignedIntValue],
+                    @"Distant grids use smaller, more densely spaced characters");
+                NSUInteger backgroundFrames = [[view valueForKey:@"backgroundUpdates"] unsignedIntegerValue];
                 struct rusage begin, end; getrusage(RUSAGE_SELF, &begin);
                 NSUInteger frames = [[view valueForKey:@"drawnFrames"] unsignedIntegerValue];
                 CFTimeInterval start = NSProcessInfo.processInfo.systemUptime;
@@ -171,19 +178,34 @@ int main(int argc, const char *argv[]) {
                 require(task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&info, &count) == KERN_SUCCESS, @"Read footprint");
                 NSData *data = [view valueForKey:@"cells"]; const StCell *cells = data.bytes; NSUInteger visible = 0;
                 for (NSUInteger i = 0; i < data.length / sizeof(StCell); i++) visible += cells[i].visible != 0;
-                printf("Dense Matrix: %.0fx%.0f points, grid %ux%u; %.1f%% cells visible; %.2f%% of one CPU core; %.1f draws/s; footprint %.1f MiB; peak RSS %.1f MiB\n",
+                printf("Dense Matrix: %.0fx%.0f points, near grid %ux%u; %.1f%% near cells visible; %.2f%% of one CPU core; %.1f draws/s; footprint %.1f MiB; peak RSS %.1f MiB\n",
                     NSWidth(view.bounds), NSHeight(view.bounds), [[view valueForKey:@"columns"] unsignedIntValue], [[view valueForKey:@"rows"] unsignedIntValue],
                     data.length ? visible * 100.0 / (data.length / sizeof(StCell)) : 0,
                     cpu / elapsed * 100, ([[view valueForKey:@"drawnFrames"] unsignedIntegerValue] - frames) / elapsed,
                     info.phys_footprint / 1048576.0, end.ru_maxrss / 1048576.0);
                 require(data.length > 0 && visible > data.length / sizeof(StCell) / 2, @"Dense native preview fills most cells");
+                printf("Depth layers: %lu; background %.1f updates/s; shared bitmap %.1f MiB\n", (unsigned long)layers.count,
+                    ([[view valueForKey:@"backgroundUpdates"] unsignedIntegerValue] - backgroundFrames) / elapsed,
+                    [[view valueForKey:@"backgroundBytes"] unsignedIntegerValue] / 1048576.0);
+                require([[view valueForKey:@"backgroundBytes"] unsignedIntegerValue] <= 17000000, @"Shared background bitmap stays bounded");
+                layers = nil; // Do not keep layer engines alive during cleanup checks.
                 compareDenseDrawing(view);
                 if (argc >= 4) require([[snapshot(view) representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
                     writeToFile:[NSString stringWithUTF8String:argv[3]] atomically:YES], @"Write dense snapshot");
+                [view setFrameSize:NSMakeSize(320, 180)]; [view animateOneFrame]; pump(0.1);
+                require(visiblePixels(snapshot(view), YES) > 100, @"Layered rain survives resize");
+                [view setFrameSize:NSZeroSize]; [view animateOneFrame];
+                [view setFrameSize:NSMakeSize(800, 500)]; [view animateOneFrame]; pump(0.1);
+                [NSWorkspace.sharedWorkspace.notificationCenter postNotificationName:NSWorkspaceWillSleepNotification object:nil];
+                require([view valueForKey:@"renderLayers"] == nil && [[view valueForKey:@"backgroundBytes"] unsignedIntegerValue] == 0,
+                    @"Sleep releases all depth grids and the shared bitmap");
+                [NSWorkspace.sharedWorkspace.notificationCenter postNotificationName:NSWorkspaceDidWakeNotification object:nil];
+                [view animateOneFrame]; pump(0.1);
                 [view stopAnimation];
                 require([view valueForKey:@"cells"] == nil && [view valueForKey:@"canvas"] == nil, @"Dense stop releases resources");
-                require([view valueForKey:@"denseBatches"] == nil && [view valueForKey:@"denseGlyphs"] == nil,
+                require([view valueForKey:@"renderLayers"] == nil,
                     @"Dense stop releases glyph caches and drawing buffers");
+                require([[view valueForKey:@"backgroundBytes"] unsignedIntegerValue] == 0, @"Stop releases the depth bitmap");
                 [window orderOut:nil];
                 return 0;
             }

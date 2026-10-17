@@ -28,7 +28,7 @@ for target in "${targets[@]}"; do
   cargo build --release --locked -p stillterm-macos-bridge --target "$target"
   xcrun clang -arch "$arch" -isysroot "$sdk" -mmacosx-version-min=11.0 \
     -fobjc-arc -fmodules -Wall -Wextra -Werror -O2 -bundle \
-    platforms/macos/StilltermView.m platforms/macos/StilltermSettings.m \
+    platforms/macos/StilltermView.m platforms/macos/StilltermSettings.m platforms/macos/StilltermRenderer.m \
     "target/$target/release/libstillterm_macos_bridge.a" \
     -framework Cocoa -framework ScreenSaver -framework CoreText -framework QuartzCore \
     -framework Security -liconv -o "$out/Stillterm-$arch"
