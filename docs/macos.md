@@ -47,12 +47,12 @@ CLI's single-column validation. Monochrome is the default.
 Build 6 adds **Words / phrases**, one per line, and a **Word frequency** selector.
 Empty text disables phrases. Up to 16 phrases of 64 printable, single-column
 characters are supported. Theme changes keep your phrases and frequency.
-Build 8 places words vertically within real falling streams. Every letter receives
-the bright stream-head highlight; the surrounding rain keeps its fading trail. Words read from top to bottom and travel
-down with the column. The first attempt is after roughly 3–5 seconds; actual timing
-also depends on rain speed and density. Phrases taller than the preview are skipped;
-try full-screen preview or a shorter word. Save applies the change; Cancel preserves
-the previous settings.
+Build 9 keeps the letters fixed vertically in their column. The passing stream head
+reveals them one by one, holding each bright until the entire word is lit. Then
+letters fade from top to bottom. The first attempt is after roughly 3–5 seconds;
+actual timing also depends on rain speed and density. Phrases taller than the
+preview are skipped; try full-screen preview or a shorter word. Save applies the
+change; Cancel preserves the previous settings.
 The text stays in local preferences.
 
 The phrase-enabled build is for local evaluation. The disk image submitted for

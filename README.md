@@ -116,14 +116,17 @@ stillterm --theme matrix --words 'anything' --word-frequency frequent
 stillterm --config examples/words.toml
 ```
 
-Words read from top to bottom inside a falling stream. They use the rain's font
-and move down with their column. Every letter receives the bright stream-head
-highlight, while the surrounding random characters keep their fading trail. The first attempt is after roughly 3–5 seconds, then waits
-for a suitable stream; speed and density affect when it appears. After a word leaves
-the screen, pauses are 4–7 seconds (Frequent), 12–20 seconds (Occasional), or 30–50
-seconds (Rare). Phrases taller than the current grid are skipped. Up to 16 phrases
-of 64 printable, single-column characters are supported; spaces create gaps in the
-vertical word. Zero density disables both rain and words.
+Words stay fixed vertically in a column. As the falling head passes each letter,
+it lights up and stays bright: `F`, `FR`, `FRE`, then `FREE`. After the final letter
+lights up, the letters fade in the same order from top to bottom. The surrounding
+rain continues normally.
+
+The first attempt is after roughly 3–5 seconds, then waits for a suitable stream;
+speed and density affect the reveal. After the last letter fades, pauses are 4–7
+seconds (Frequent), 12–20 seconds (Occasional), or 30–50 seconds (Rare). Phrases
+taller than the current grid are skipped. Up to 16 phrases of 64 printable,
+single-column characters are supported; spaces create gaps. Zero density disables
+both rain and words.
 The text stays in local settings and is not sent to a service.
 
 ## Configure
