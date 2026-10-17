@@ -38,6 +38,12 @@ pub struct Args {
     /// Printable single-column characters; overrides the theme preset
     #[arg(long, global = true)]
     pub characters: Option<String>,
+    /// Optional words or phrases, one per line; empty text disables them
+    #[arg(long, global = true)]
+    pub words: Option<String>,
+    /// How often words appear [default: occasional]
+    #[arg(long, global = true, value_parser = ["rare", "occasional", "frequent"])]
+    pub word_frequency: Option<String>,
     /// Reproducible random seed [default: 42]
     #[arg(long, global = true)]
     pub seed: Option<u64>,

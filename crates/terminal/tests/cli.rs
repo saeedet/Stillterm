@@ -31,6 +31,8 @@ fn invalid_configuration_fails_before_terminal_setup() {
         ["--theme", "unknown"],
         ["--intensity", "NaN"],
         ["--characters", "\x1b"],
+        ["--words", "a\tb"],
+        ["--word-frequency", "sometimes"],
     ] {
         let output = cli().args(flags).output().unwrap();
         assert!(!output.status.success());

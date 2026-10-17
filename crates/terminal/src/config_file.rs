@@ -15,6 +15,8 @@ struct FileConfig {
     density: Option<f64>,
     intensity: Option<f64>,
     characters: Option<String>,
+    words: String,
+    word_frequency: String,
     seed: u64,
 }
 
@@ -28,6 +30,8 @@ impl Default for FileConfig {
             density: None,
             intensity: None,
             characters: None,
+            words: String::new(),
+            word_frequency: "occasional".into(),
             seed: 42,
         }
     }
@@ -89,6 +93,13 @@ impl Settings {
                     .as_deref()
                     .or(config.characters.as_deref())
                     .unwrap_or(defaults.characters),
+            )?
+            .with_words(
+                args.words.as_deref().unwrap_or(&config.words),
+                args.word_frequency
+                    .as_deref()
+                    .unwrap_or(&config.word_frequency)
+                    .parse()?,
             )?,
             fps,
             seed: args.seed.unwrap_or(config.seed),
@@ -149,6 +160,45 @@ mod tests {
     }
 
     #[test]
+    fn phrase_settings_follow_file_and_cli_precedence() {
+        use stillterm_engine::{Engine, GridSize, Theme, WordFrequency};
+        let file = toml::from_str("words = 'from file'\nword_frequency = 'rare'").unwrap();
+        let args = Args::parse_from([
+            "stillterm",
+            "--words",
+            "anything",
+            "--word-frequency",
+            "frequent",
+        ]);
+        let settings = Settings::merge(file, &args).unwrap();
+        let size = GridSize::new(40, 20).unwrap();
+        let mut actual = Engine::rain(size, settings.effect, 42);
+        let mut expected = Engine::rain(
+            size,
+            Theme::Monochrome
+                .rain_config()
+                .with_words("anything", WordFrequency::Frequent)
+                .unwrap(),
+            42,
+        );
+        for _ in 0..600 {
+            actual.step();
+            expected.step();
+            assert_eq!(actual.frame(), expected.frame());
+        }
+        let file = toml::from_str("words = 'anything'").unwrap();
+        let settings =
+            Settings::merge(file, &Args::parse_from(["stillterm", "--words", ""])).unwrap();
+        let mut actual = Engine::rain(size, settings.effect, 42);
+        let mut expected = Engine::rain(size, Theme::Monochrome.rain_config(), 42);
+        for _ in 0..300 {
+            actual.step();
+            expected.step();
+            assert_eq!(actual.frame(), expected.frame());
+        }
+    }
+
+    #[test]
     fn file_typos_and_invalid_values_are_errors() {
         assert!(toml::from_str::<FileConfig>("speeed = 1.0").is_err());
         for input in [
@@ -159,6 +209,8 @@ mod tests {
             "effect = 'other'",
             "theme = 'other'",
             "characters = ''",
+            "words = '界'",
+            "word_frequency = 'sometimes'",
         ] {
             let config = toml::from_str(input).unwrap();
             assert!(Settings::merge(config, &Args::parse_from(["stillterm"])).is_err());
