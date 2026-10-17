@@ -1,8 +1,8 @@
 # macOS screensaver
 
 Stillterm builds a native `Stillterm.saver` with the same Rust rain engine as the
-CLI. It includes Monochrome, Matrix, and Dense Matrix themes, a small preview, and an options
-sheet. This is a source-build preview, not a signed public release.
+CLI. It includes Monochrome, Matrix, Dense Matrix, an experimental 3D corridor, and
+a native options sheet. This is a source-build preview, not a signed public release.
 
 ## Build and try
 
@@ -75,6 +75,46 @@ Preferences use Apple's `ScreenSaverDefaults`, under
 owns its engine and refreshes the ScreenSaverDefaults cache before loading
 preferences on its next start. Changes in a different
 host process take effect when that screensaver instance restarts.
+
+## Experimental 3D corridor
+
+Build 12 adds **Matrix 3D (experimental)** to Options. It renders a procedural
+corridor using Rust/wgpu and a WGSL shader, presented through a native CAMetalLayer.
+Four independently seeded rain sheets cover the walls, floor, and ceiling. Slow
+camera movement creates perspective and parallax; distance fog and a small glow
+kernel soften the code. Custom glyphs are rasterized into an atlas using Core Text;
+words reveal on the two walls with the shared engine's progressive timing.
+
+Choose the mode and Save to keep it. A temporary demo preserves saved preferences:
+
+```sh
+# Build first, then run scripts/check-macos.sh to create the preview host.
+"target/macos/Stillterm Preview.app/Contents/MacOS/preview-host" \
+  target/macos/Stillterm.saver --corridor
+```
+
+The demo uses seed 42 and `FREE` for repeatable comparison. Speed controls rain and
+camera movement; character size changes surface spacing. Brightness and density
+retain their usual controls. Rendering resolution is capped near 2.1 million GPU
+pixels and scaled to the view; the default is 30 FPS. The windowed prototype has
+been checked locally on Apple M3. Installed full-screen/idle activation, additional
+GPU hardware, long sessions, and energy use still need testing. Windows and the
+terminal keep their existing rain modes.
+
+GPU resources are released explicitly on stop, sleep, hidden/detached views, and
+zero-sized surfaces. An initialization or rendering failure falls back to Dense
+Matrix with a short on-screen message. A diagnostic check renders a GPU image,
+checks animation, remote-host visibility, resize, sleep/wake, repeated cleanup,
+and fallback. It reports a skipped GPU check if Metal is unavailable, while still
+checking that fallback draws rain. Normal animation never reads GPU pixels back.
+
+```sh
+"target/macos/Stillterm Preview.app/Contents/MacOS/preview-host" \
+  target/macos/Stillterm.saver --check-corridor target/macos/corridor-preview.png
+```
+
+The snapshot comes directly from the renderer; screen-recording permission is not
+needed. See [measurements](performance.md#gpu-corridor-prototype-build-12).
 
 ## Checks and limits
 

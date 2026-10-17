@@ -83,6 +83,32 @@ Installed long sessions, other displays, and energy use remain unmeasured. These
 figures replace build 10's rendering figures for the current Mac preset; Windows
 and terminal Dense Matrix still use one grid.
 
+## GPU corridor prototype (build 12)
+
+On the same Apple M3/macOS 27.0.1 setup, the Metal-backed windowed corridor used
+1837×1128 GPU pixels, seed 42, speed 1, density 0.95, brightness 1, and `FREE` at
+Frequent. After warm-up, a five-second sample measured 15.3% of one CPU core and
+30.2 presentation calls/second. Physical footprint was 176.6 MiB and peak RSS
+106.2 MiB. These figures include the native test loop and diagnostic snapshot
+buffers; they exclude WindowServer, GPU utilization, and energy. Presentation
+calls are not a physical display-frame measurement.
+
+The scene reuses four 192×64 rain sheets and uploads about 192 KiB per frame.
+One full-screen GPU pass computes corridor intersections, perspective, atlas
+sampling, glow, and fog. Drawable resolution is capped near 2.1 million pixels;
+normal frames stay on the GPU. Readback is used only by snapshot tests.
+
+After six warm start/stop cycles, the diagnostic host settled at 123.8 MiB, with
+0.1 MiB growth from its warm baseline. This includes driver caches and diagnostic
+images and is not an installed idle-host baseline. Stop explicitly destroys the
+renderer even if AppKit temporarily retains its view. Resize, zero dimensions,
+sleep/wake, remote-host visibility, and unavailable-GPU fallback have native checks.
+
+The lower CPU figure does not establish lower GPU or energy use. Installed
+full-screen playback, longer sessions, Intel/other GPUs, and energy still need
+measurement. Run the [native corridor check](macos.md#experimental-3d-corridor)
+to reproduce the image and measurement.
+
 ## Reproduce
 
 ```sh
