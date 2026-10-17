@@ -8,6 +8,8 @@ pub mod effects;
 mod engine;
 mod frame;
 mod theme;
+mod words;
+pub use words::WordFrequency;
 
 pub use config::{ConfigError, EffectConfig};
 pub use engine::{Engine, TICKS_PER_SECOND};

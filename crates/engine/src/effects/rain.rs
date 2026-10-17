@@ -1,7 +1,7 @@
 use rand_chacha::{ChaCha8Rng, rand_core::RngCore};
 
 use super::Effect;
-use crate::{Cell, EffectConfig, Frame, GridSize};
+use crate::{Cell, EffectConfig, Frame, GridSize, words::Words};
 
 #[derive(Debug)]
 struct Stream {
@@ -20,12 +20,15 @@ pub struct Rain {
     size: GridSize,
     streams: Vec<Stream>,
     tick: u64,
+    words: Words,
 }
 
 impl Rain {
     /// Randomness is supplied explicitly; rendering never touches it.
     pub fn new(config: EffectConfig, rng: ChaCha8Rng) -> Self {
+        let words = Words::new(rng.clone());
         Self {
+            words,
             config,
             rng,
             size: GridSize::new(0, 0).expect("empty grid"),
@@ -54,6 +57,7 @@ impl Rain {
 
 impl Effect for Rain {
     fn resize(&mut self, size: GridSize) {
+        self.words.resize();
         self.size = size;
         let columns = if size.is_empty() {
             0
@@ -71,6 +75,7 @@ impl Effect for Rain {
         if self.size.is_empty() {
             return;
         }
+        self.words.step(&self.config.words, self.size);
         self.tick = self.tick.wrapping_add(1);
         for column in 0..self.streams.len() {
             let stream = &mut self.streams[column];
@@ -116,6 +121,8 @@ impl Effect for Rain {
                 );
             }
         }
+        self.words
+            .render(&self.config.words, self.config.intensity, frame);
     }
 }
 

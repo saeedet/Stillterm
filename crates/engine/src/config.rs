@@ -1,6 +1,6 @@
 use std::{error::Error, fmt};
 
-use crate::Glyph;
+use crate::{Glyph, WordFrequency, words::WordConfig};
 
 /// A configuration error suitable for displaying before opening a surface.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,6 +21,7 @@ pub struct EffectConfig {
     pub(crate) density: u32,
     pub(crate) intensity: u32,
     pub(crate) glyphs: Vec<Glyph>,
+    pub(crate) words: WordConfig,
 }
 
 impl EffectConfig {
@@ -60,7 +61,14 @@ impl EffectConfig {
             density,
             intensity,
             glyphs,
+            words: WordConfig::default(),
         })
+    }
+    /// Add up to 16 optional phrases, one per line, each at most 64 printable
+    /// single-column characters. Empty lines are ignored; empty text disables it.
+    pub fn with_words(mut self, text: &str, frequency: WordFrequency) -> Result<Self, ConfigError> {
+        self.words = WordConfig::new(text, frequency)?;
+        Ok(self)
     }
 }
 
