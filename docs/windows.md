@@ -59,7 +59,12 @@ preview never falls back to full screen. Keyboard and mouse input dismiss full
 screen, but do not dismiss the embedded preview. Windows owns authentication.
 
 Settings include theme, speed, density, brightness, FPS, character size, seed,
-and custom characters. Choosing a theme resets its visual values to the preset.
+custom characters, and optional words/phrases. Enter one phrase per line in
+**Words** and choose **Word frequency**. Empty text disables phrases. Up to 16
+phrases of 64 printable, single-column characters are supported. Theme changes
+preserve phrases and frequency while resetting visual values to the preset.
+The phrase controls have automated checks; manual Windows validation of this new
+feature remains pending.
 Save validates every field and replaces the per-user TOML file; Cancel changes
 nothing. A damaged file falls back to defaults during animation and shows an
 explanation when Settings opens. Preferences are separate from the CLI and macOS.

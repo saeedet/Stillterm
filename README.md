@@ -103,6 +103,26 @@ Use a font with half-width Katakana support. For an ASCII fallback, add
 movie's mirrored characters. True-color terminals show the smoothest green ramp;
 256-color and basic-color terminals use reduced palettes. `NO_COLOR` disables color.
 
+## Words in the rain
+
+Open the native screensaver's **Options/Settings**, enter one word or phrase per
+line in **Words / phrases** (Windows: **Words**), and choose Rare, Occasional, or
+Frequent. Leave the field empty to disable it. Both themes support phrases.
+
+In a terminal, including the Linux adapter:
+
+```sh
+stillterm --theme matrix --words 'anything' --word-frequency frequent
+stillterm --config examples/words.toml
+```
+
+The first phrase appears after roughly 3–5 seconds. Letters resolve horizontally,
+remain readable for about two seconds, and dissolve into the continuing rain.
+Later pauses are 4–7 seconds (Frequent), 12–20 seconds (Occasional), or 30–50 seconds
+(Rare). Only phrases that fit the current grid are shown. Up to 16 phrases of 64
+printable, single-column characters are supported; spaces inside phrases are kept.
+The text stays in local settings and is not sent to a service.
+
 ## Configure
 
 Settings apply in this order: built-in defaults, an explicitly supplied TOML file,
@@ -124,6 +144,8 @@ changing a CLI file does not change either native screensaver.
 | `intensity` | `0.7` | 0.0–1.0 |
 | `characters` | `"0123456789.:+*"` | 1–256 printable, single-column characters |
 | `seed` | `42` | Unsigned 64-bit integer |
+| `words` | `""` | One optional phrase per line; blank disables; up to 16 × 64 characters |
+| `word_frequency` | `"occasional"` | `rare`, `occasional`, `frequent` |
 
 See [the example configuration](examples/config.toml) or `stillterm --help`.
 The numeric and character defaults in the table describe the monochrome theme.

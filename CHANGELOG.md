@@ -8,6 +8,11 @@ has been published.
 
 ### Added
 
+- Optional words and phrases resolve briefly within the rain, with Rare,
+  Occasional, and Frequent settings. Configure them in native Mac/Windows settings
+  or terminal TOML/flags; existing preferences keep words disabled. Mac build 6 is
+  available for local evaluation; manual Windows feature testing is pending.
+
 - Deterministic rain animation with Monochrome and Matrix themes, configurable
   speed, density, brightness, characters, frame rate, and seed.
 - Terminal application with TOML configuration, resizing, color fallbacks, and

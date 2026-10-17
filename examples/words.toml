@@ -1,0 +1,7 @@
+# One optional word or phrase per line. Empty text disables phrases.
+theme = "matrix"
+word_frequency = "frequent"
+words = """
+anything
+wake up
+"""
