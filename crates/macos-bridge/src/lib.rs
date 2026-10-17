@@ -35,6 +35,54 @@ pub struct StCell {
     pub visible: u8,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct StDepthLayer {
+    pub options: StOptions,
+    pub font_scale: f64,
+    pub offset: f64,
+}
+
+/// Dense Matrix presentation layers, ordered from distant to near. Words belong
+/// only to the near layer. Separate seeds prevent repeated copies of one sheet.
+/// # Safety
+/// `output` must be null or a writable, aligned StDepthLayer pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn st_depth_defaults(
+    base: StOptions,
+    layer: u32,
+    output: *mut StDepthLayer,
+) -> i32 {
+    if base.theme != 2
+        || output.is_null()
+        || base.word_frequency > 2
+        || EffectConfig::new(base.speed, base.density, base.intensity, "01").is_err()
+    {
+        return INVALID;
+    }
+    let (font_scale, speed, brightness, offset, salt) = match layer {
+        0 => (0.65, 0.5, 0.5, 0.3, 0x6a09e667f3bcc909),
+        1 => (0.85, 0.8, 0.8, 0.65, 0xbb67ae8584caa73b),
+        2 => (1.15, 1.3, 1.0, 0.0, 0),
+        _ => return INVALID,
+    };
+    let options = StOptions {
+        seed: base.seed ^ salt,
+        speed: (base.speed * speed).clamp(0.1, 4.0),
+        intensity: base.intensity * brightness,
+        ..base
+    };
+    // SAFETY: the caller provides an aligned writable output, checked non-null.
+    unsafe {
+        output.write(StDepthLayer {
+            options,
+            font_scale,
+            offset,
+        });
+    }
+    OK
+}
+
 pub struct StEngine {
     engine: Engine,
     theme: Theme,
@@ -366,6 +414,52 @@ mod tests {
                 );
             }
             st_destroy(handle);
+        }
+    }
+
+    #[test]
+    fn depth_layers_are_independent_bounded_and_respect_user_controls() {
+        // SAFETY: valid writable output, and null pointers only for rejection checks.
+        unsafe {
+            let mut base = options();
+            assert_eq!(st_defaults(2, &mut base), OK);
+            base.seed = u64::MAX;
+            let mut layers = Vec::new();
+            for layer in 0..3 {
+                let mut depth = StDepthLayer {
+                    options: base,
+                    font_scale: 0.0,
+                    offset: 0.0,
+                };
+                assert_eq!(st_depth_defaults(base, layer, &mut depth), OK);
+                assert_eq!(depth.options.density, base.density);
+                assert_eq!(depth.options.word_frequency, base.word_frequency);
+                assert!((0.1..=4.0).contains(&depth.options.speed));
+                layers.push(depth);
+            }
+            assert!(
+                layers
+                    .windows(2)
+                    .all(|pair| pair[0].font_scale < pair[1].font_scale
+                        && pair[0].options.speed < pair[1].options.speed
+                        && pair[0].options.intensity < pair[1].options.intensity
+                        && pair[0].options.seed != pair[1].options.seed)
+            );
+            assert_eq!(layers[2].options.seed, base.seed);
+            base.speed = 4.0;
+            base.density = 0.0;
+            base.intensity = 0.0;
+            for layer in 0..3 {
+                let mut depth = layers[0];
+                assert_eq!(st_depth_defaults(base, layer, &mut depth), OK);
+                assert_eq!(depth.options.density, 0.0);
+                assert_eq!(depth.options.intensity, 0.0);
+                assert!(depth.options.speed <= 4.0);
+            }
+            assert_eq!(st_depth_defaults(base, 3, &mut layers[0]), INVALID);
+            assert_eq!(st_depth_defaults(base, 0, ptr::null_mut()), INVALID);
+            base.speed = f64::NAN;
+            assert_eq!(st_depth_defaults(base, 0, &mut layers[0]), INVALID);
         }
     }
     #[test]

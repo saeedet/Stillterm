@@ -16,11 +16,17 @@ typedef struct {
     uint32_t word_frequency; // 0 rare, 1 occasional, 2 frequent
 } StOptions;
 typedef struct {
+    StOptions options;
+    double font_scale, offset;
+} StDepthLayer;
+typedef struct {
     uint32_t scalar; // Unicode scalar, not UTF-16
     uint8_t red, green, blue, visible;
 } StCell;
 enum { ST_OK = 0, ST_INVALID = -1, ST_BUFFER_TOO_SMALL = -2, ST_PANIC = -3 };
 int32_t st_defaults(uint32_t theme, StOptions *output);
+// Dense Matrix layers 0..2, distant to near; words belong only to layer 2.
+int32_t st_depth_defaults(StOptions base, uint32_t layer, StDepthLayer *output);
 // UTF-8 bytes; length 0 selects theme characters. Returns NULL on failure.
 StEngine *st_create(uint32_t columns, uint32_t rows, StOptions options,
                     const uint8_t *characters, size_t length);

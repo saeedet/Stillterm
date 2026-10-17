@@ -69,7 +69,7 @@ fn dense_matrix_fills_short_and_tall_grids_without_brightening_the_background() 
                 if cell.intensity > 0 {
                     filled += 1;
                     if !cell.emphasis {
-                        assert!(cell.intensity <= 180, "background overpowers the heads");
+                        assert!(cell.intensity <= 220, "background overpowers the heads");
                     }
                 }
             }
@@ -121,4 +121,35 @@ fn dense_trails_handle_extreme_dimensions_resize_and_zero_density() {
         Theme::DenseMatrix.rgb(255, true),
         Theme::Matrix.rgb(255, true)
     );
+}
+
+#[test]
+fn dense_sheets_are_fuller_at_the_top_and_fade_into_the_lower_screen() {
+    let mut engine = Engine::rain(
+        GridSize::new(200, 120).unwrap(),
+        Theme::DenseMatrix.rain_config(),
+        42,
+    );
+    let mut top = 0u64;
+    let mut bottom = 0u64;
+    for _ in 0..120 {
+        engine.step();
+        for (index, cell) in engine.frame().cells().iter().enumerate() {
+            if cell.emphasis {
+                continue;
+            }
+            let row = index / 200;
+            if row < 40 {
+                top += u64::from(cell.intensity);
+            }
+            if row >= 80 {
+                bottom += u64::from(cell.intensity);
+            }
+        }
+    }
+    assert!(
+        bottom > 0,
+        "the lower screen still contains receding trails"
+    );
+    assert!(top > bottom * 3, "the rain should recede toward the bottom");
 }

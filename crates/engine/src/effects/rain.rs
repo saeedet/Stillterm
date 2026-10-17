@@ -116,15 +116,23 @@ impl Effect for Rain {
             for row in start..=end {
                 let distance = stream.head - row * 256;
                 let remaining = (stream.length * 256).saturating_sub(distance);
-                let mut intensity = (u64::from(remaining) * 255 / u64::from(stream.length * 256))
-                    as u32
-                    * self.config.intensity
-                    / 1000;
+                let level = (u64::from(remaining) * 255 / u64::from(stream.length * 256)) as u32;
+                let level = if self.config.dense_trails {
+                    level * (510 - level) / 255
+                } else {
+                    level
+                };
+                let mut intensity = level * self.config.intensity / 1000;
                 if self.config.dense_trails && row != head_row {
                     // A dim, varied background lets sparse pale heads and words
                     // remain legible even when most of the grid contains glyphs.
-                    let depth = 90 + stream.salt as u32 % 91;
+                    let depth = 140 + stream.salt as u32 % 81;
                     intensity = intensity * depth / 255;
+                    // Dense sheets collect near the top and disappear into the
+                    // distance toward the bottom; heads remain distinct.
+                    let height = u32::from(self.size.rows()).max(1);
+                    let falloff = ((height - row) * 255 / (height * 45 / 100).max(1)).min(255);
+                    intensity = intensity * falloff * falloff / (255 * 255);
                 }
                 // Integer hashing makes glyph choices independent of platform math libraries.
                 let phase = self.tick.wrapping_add(u64::from(row) * 13) / 90;
