@@ -25,7 +25,7 @@ impl Palette {
         }
         let term = std::env::var("TERM").unwrap_or_default();
         let color = std::env::var("COLORTERM").unwrap_or_default();
-        if theme == Theme::Matrix {
+        if matches!(theme, Theme::Matrix | Theme::DenseMatrix) {
             return if color == "truecolor" || color == "24bit" {
                 Self::MatrixTrueColor
             } else if cfg!(windows) || term.contains("256color") {

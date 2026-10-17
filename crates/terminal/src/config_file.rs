@@ -94,6 +94,7 @@ impl Settings {
                     .or(config.characters.as_deref())
                     .unwrap_or(defaults.characters),
             )?
+            .with_theme_style(theme)
             .with_words(
                 args.words.as_deref().unwrap_or(&config.words),
                 args.word_frequency
@@ -157,6 +158,27 @@ mod tests {
                 .fps,
             30
         );
+    }
+
+    #[test]
+    fn dense_preset_keeps_its_trails_with_explicit_numeric_overrides() {
+        use stillterm_engine::{Engine, GridSize};
+        let settings = Settings::merge(
+            toml::from_str("theme = 'dense-matrix'\ncharacters = '01'\ndensity = 0.8").unwrap(),
+            &Args::parse_from(["stillterm", "--speed", "0.5"]),
+        )
+        .unwrap();
+        let size = GridSize::new(120, 60).unwrap();
+        let mut actual = Engine::rain(size, settings.effect, 42);
+        let config = EffectConfig::new(0.5, 0.8, 1.0, "01")
+            .unwrap()
+            .with_theme_style(Theme::DenseMatrix);
+        let mut expected = Engine::rain(size, config, 42);
+        for _ in 0..120 {
+            actual.step();
+            expected.step();
+            assert_eq!(actual.frame(), expected.frame());
+        }
     }
 
     #[test]

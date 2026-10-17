@@ -8,6 +8,7 @@ pub enum Theme {
     #[default]
     Monochrome,
     Matrix,
+    DenseMatrix,
 }
 
 /// Theme defaults; adapters apply explicit user overrides before validation.
@@ -34,6 +35,12 @@ impl Theme {
                 // Half-width Katakana; exclude combining voiced sound marks.
                 characters: "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789:<>*+-",
             },
+            Self::DenseMatrix => RainDefaults {
+                speed: 1.2,
+                density: 0.95,
+                intensity: 1.0,
+                ..Self::Matrix.rain_defaults()
+            },
         }
     }
 
@@ -46,6 +53,12 @@ impl Theme {
             defaults.characters,
         )
         .expect("valid built-in theme")
+        .with_theme_style(self)
+    }
+
+    /// Suggested native character size in logical points; terminals own their font.
+    pub fn character_size(self) -> u16 {
+        if self == Self::DenseMatrix { 10 } else { 18 }
     }
 
     /// Ideal RGB color, before an adapter reduces it to its display palette.
@@ -53,12 +66,14 @@ impl Theme {
         let value = u16::from(intensity);
         match self {
             Self::Monochrome => [intensity; 3],
-            Self::Matrix if emphasis => [
+            Self::Matrix | Self::DenseMatrix if emphasis => [
                 (value * 210 / 255) as u8,
                 intensity,
                 (value * 225 / 255) as u8,
             ],
-            Self::Matrix => [0, (value * 220 / 255) as u8, (value * 45 / 255) as u8],
+            Self::Matrix | Self::DenseMatrix => {
+                [0, (value * 220 / 255) as u8, (value * 45 / 255) as u8]
+            }
         }
     }
 }
@@ -69,8 +84,9 @@ impl FromStr for Theme {
         match value {
             "monochrome" => Ok(Self::Monochrome),
             "matrix" => Ok(Self::Matrix),
+            "dense-matrix" => Ok(Self::DenseMatrix),
             _ => Err(ConfigError(format!(
-                "unknown theme {value:?}; available: monochrome, matrix"
+                "unknown theme {value:?}; available: monochrome, matrix, dense-matrix"
             ))),
         }
     }

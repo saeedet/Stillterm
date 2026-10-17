@@ -27,7 +27,7 @@ fn has_phrase(engine: &mut Engine, phrase: &str) -> bool {
 
 #[test]
 fn phrases_stay_fixed_as_the_head_reveals_them_then_fade_back_into_the_same_rain() {
-    for theme in [Theme::Matrix, Theme::Monochrome] {
+    for theme in [Theme::Matrix, Theme::Monochrome, Theme::DenseMatrix] {
         let size = GridSize::new(48, 18).unwrap();
         let mut words = Engine::rain(
             size,

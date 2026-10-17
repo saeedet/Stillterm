@@ -50,3 +50,75 @@ fn matrix_heads_are_pale_trails_are_green_and_zero_is_black() {
     assert!(head.iter().all(|component| *component >= 210));
     assert!(trail[1] > trail[0] && trail[1] > trail[2]);
 }
+
+#[test]
+fn dense_matrix_fills_short_and_tall_grids_without_brightening_the_background() {
+    for (columns, rows) in [(80, 24), (240, 80)] {
+        let size = GridSize::new(columns, rows).unwrap();
+        let mut dense = Engine::rain(size, Theme::DenseMatrix.rain_config(), 42);
+        let mut repeat = Engine::rain(size, Theme::DenseMatrix.rain_config(), 42);
+        let mut classic = Engine::rain(size, Theme::Matrix.rain_config(), 42);
+        let mut filled = 0;
+        let mut sparse = 0;
+        for _ in 0..120 {
+            dense.step();
+            repeat.step();
+            classic.step();
+            assert_eq!(dense.frame(), repeat.frame());
+            for cell in dense.frame().cells() {
+                if cell.intensity > 0 {
+                    filled += 1;
+                    if !cell.emphasis {
+                        assert!(cell.intensity <= 180, "background overpowers the heads");
+                    }
+                }
+            }
+            sparse += classic
+                .frame()
+                .cells()
+                .iter()
+                .filter(|c| c.intensity > 0)
+                .count();
+        }
+        assert!(
+            filled > size.len() * 120 / 2,
+            "dense preset leaves most cells empty"
+        );
+        assert!(
+            filled > sparse * 2,
+            "dense preset is too close to ordinary Matrix"
+        );
+    }
+}
+
+#[test]
+fn dense_trails_handle_extreme_dimensions_resize_and_zero_density() {
+    let mut engine = Engine::rain(
+        GridSize::new(1, u16::MAX).unwrap(),
+        Theme::DenseMatrix.rain_config(),
+        42,
+    );
+    for size in [(1, u16::MAX), (320, 100), (1, 1), (0, 0), (200, 80)] {
+        engine.resize(GridSize::new(size.0, size.1).unwrap());
+        for _ in 0..10 {
+            engine.step();
+        }
+        assert_eq!(
+            engine.frame().size(),
+            GridSize::new(size.0, size.1).unwrap()
+        );
+    }
+    let config = stillterm_engine::EffectConfig::new(1.2, 0.0, 1.0, "01")
+        .unwrap()
+        .with_theme_style(Theme::DenseMatrix);
+    let mut engine = Engine::rain(GridSize::new(80, 24).unwrap(), config, 42);
+    for _ in 0..300 {
+        engine.step();
+        assert!(engine.frame().cells().iter().all(|c| c.intensity == 0));
+    }
+    assert_eq!("dense-matrix".parse::<Theme>().unwrap(), Theme::DenseMatrix);
+    assert_eq!(
+        Theme::DenseMatrix.rgb(255, true),
+        Theme::Matrix.rgb(255, true)
+    );
+}

@@ -22,6 +22,7 @@ pub struct EffectConfig {
     pub(crate) intensity: u32,
     pub(crate) glyphs: Vec<Glyph>,
     pub(crate) words: WordConfig,
+    pub(crate) dense_trails: bool,
 }
 
 impl EffectConfig {
@@ -62,7 +63,13 @@ impl EffectConfig {
             intensity,
             glyphs,
             words: WordConfig::default(),
+            dense_trails: false,
         })
+    }
+    /// Apply a theme's trail style while preserving numeric and glyph overrides.
+    pub fn with_theme_style(mut self, theme: crate::Theme) -> Self {
+        self.dense_trails = theme == crate::Theme::DenseMatrix;
+        self
     }
     /// Add up to 16 optional phrases, one per line, each at most 64 printable
     /// single-column characters. Empty lines are ignored; empty text disables it.

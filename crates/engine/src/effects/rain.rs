@@ -38,7 +38,15 @@ impl Rain {
     }
 
     fn stream(&mut self, distributed: bool) -> Stream {
-        let length = 5 + self.rng.next_u32() % 14;
+        let length = if self.config.dense_trails {
+            // Screen-relative tails keep small characters from producing short,
+            // disconnected streaks on tall displays. One stream per column keeps
+            // simulation storage bounded by width, independent of trail length.
+            let height = u32::from(self.size.rows()).max(12);
+            height + self.rng.next_u32() % (height * 2)
+        } else {
+            5 + self.rng.next_u32() % 14
+        };
         let active = self.rng.next_u32() % 1000 < self.config.density;
         Stream {
             head: if distributed {
@@ -108,8 +116,16 @@ impl Effect for Rain {
             for row in start..=end {
                 let distance = stream.head - row * 256;
                 let remaining = (stream.length * 256).saturating_sub(distance);
-                let intensity =
-                    (remaining * 255 / (stream.length * 256)) * self.config.intensity / 1000;
+                let mut intensity = (u64::from(remaining) * 255 / u64::from(stream.length * 256))
+                    as u32
+                    * self.config.intensity
+                    / 1000;
+                if self.config.dense_trails && row != head_row {
+                    // A dim, varied background lets sparse pale heads and words
+                    // remain legible even when most of the grid contains glyphs.
+                    let depth = 90 + stream.salt as u32 % 91;
+                    intensity = intensity * depth / 255;
+                }
                 // Integer hashing makes glyph choices independent of platform math libraries.
                 let phase = self.tick.wrapping_add(u64::from(row) * 13) / 90;
                 let mut hash =

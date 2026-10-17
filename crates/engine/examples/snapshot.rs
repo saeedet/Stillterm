@@ -7,12 +7,14 @@ fn main() {
         .nth(1)
         .unwrap_or_else(|| "monochrome".into())
         .parse()
-        .expect("theme: monochrome or matrix");
+        .expect("theme: monochrome, matrix, or dense-matrix");
     let mut engine = Engine::rain(size, theme.rain_config(), 42);
     for _ in 0..120 {
         engine.step();
     }
-    let description = if theme == Theme::Matrix {
+    let description = if theme == Theme::DenseMatrix {
+        "Dense green character streams with long dim trails and scattered pale heads"
+    } else if theme == Theme::Matrix {
         "Green character streams with pale heads and Katakana on a dark background"
     } else {
         "A deterministic snapshot of sparse character streams with soft gray trails on a dark background"
@@ -31,7 +33,7 @@ fn main() {
         }
         // Match the terminal renderer's xterm grayscale ramp.
         let value = 8 + (level * 23 / 15) * 10;
-        let [r, g, b] = if theme == Theme::Matrix {
+        let [r, g, b] = if matches!(theme, Theme::Matrix | Theme::DenseMatrix) {
             theme.rgb((level * 17) as u8, cell.emphasis)
         } else {
             [value as u8; 3]

@@ -116,7 +116,7 @@ def check(binary, mode, theme):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("binary", nargs="?", default="target/debug/stillterm")
-    parser.add_argument("--theme", choices=["monochrome", "matrix"], default="monochrome")
+    parser.add_argument("--theme", choices=["monochrome", "matrix", "dense-matrix"], default="monochrome")
     parser.add_argument("--panic-check", action="store_true", help="also run the Rust panic cleanup test in a PTY")
     args = parser.parse_args()
     binary = str(Path(args.binary).resolve())

@@ -21,7 +21,7 @@ pub struct Args {
     #[arg(long, global = true)]
     pub effect: Option<String>,
     /// Visual preset [default: monochrome]
-    #[arg(long, global = true, value_parser = ["monochrome", "matrix"])]
+    #[arg(long, global = true, value_parser = ["monochrome", "matrix", "dense-matrix"])]
     pub theme: Option<String>,
     /// Presentation frames per second (10–60) [default: 30]
     #[arg(long, global = true)]
