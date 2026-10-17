@@ -16,6 +16,8 @@ public static class StilltermPreviewTest {
         public IntPtr LParam; public uint Time; public Point Pt; public uint Private;
     }
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern IntPtr CreateWindowExW(uint ex, string cls, string title, uint style, int x, int y, int w, int h, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr data);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern bool SetWindowTextW(IntPtr hwnd, string text);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr hwnd, StringBuilder text, int length);
     [DllImport("user32.dll")] public static extern bool DestroyWindow(IntPtr hwnd);
     [DllImport("user32.dll")] static extern bool PeekMessageW(out Msg msg, IntPtr hwnd, uint min, uint max, uint remove);
     [DllImport("user32.dll")] static extern bool TranslateMessage(ref Msg msg);
@@ -109,6 +111,17 @@ try {
             if ($selection -eq 0 -and [StilltermPreviewTest]::SendMessageW($combo, 0x0147, [UIntPtr]::Zero, [IntPtr]::Zero).ToInt64() -ne 1) {
                 throw 'Saved Matrix theme did not reload in a new process'
             }
+            $wordField = [StilltermPreviewTest]::GetDlgItem($window, 27)
+            $frequency = [StilltermPreviewTest]::GetDlgItem($window, 11)
+            if ($wordField -eq [IntPtr]::Zero -or $frequency -eq [IntPtr]::Zero) { throw 'Phrase controls are missing' }
+            if ($selection -eq 0) {
+                $loadedWords = [System.Text.StringBuilder]::new(1024)
+                [StilltermPreviewTest]::GetWindowTextW($wordField, $loadedWords, 1024) | Out-Null
+                if ($loadedWords.ToString() -ne "anything`r`nwake up") { throw 'Phrases did not reload in a new process' }
+                if ([StilltermPreviewTest]::SendMessageW($frequency, 0x0147, [UIntPtr]::Zero, [IntPtr]::Zero).ToInt64() -ne 2) { throw 'Word frequency did not reload' }
+            }
+            [StilltermPreviewTest]::SetWindowTextW($wordField, "anything`r`nwake up") | Out-Null
+            [StilltermPreviewTest]::SendMessageW($frequency, 0x014E, [UIntPtr]2, [IntPtr]::Zero) | Out-Null
             [StilltermPreviewTest]::SendMessageW($combo, 0x014E, [UIntPtr]$selection, [IntPtr]::Zero) | Out-Null
             [StilltermPreviewTest]::SendMessageW($window, 0x0111, [UIntPtr]65546, $combo) | Out-Null
             [StilltermPreviewTest]::SendMessageW($window, 0x0111, [UIntPtr]1, [IntPtr]::Zero) | Out-Null
@@ -117,6 +130,7 @@ try {
             $saved = Get-Content (Join-Path $testData 'Stillterm/screensaver.toml') -Raw
             $expected = if ($selection -eq 1) { 'matrix' } else { 'monochrome' }
             if (-not $saved.Contains('theme = "' + $expected + '"')) { throw 'Theme was not persisted' }
+            if (-not $saved.Contains('anything') -or -not $saved.Contains('wake up') -or -not $saved.Contains('word_frequency = "frequent"')) { throw 'Phrases or word frequency were not persisted' }
         } finally {
             if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
             $process.Dispose()
@@ -136,6 +150,7 @@ try {
             throw 'Saved Monochrome theme did not reload'
         }
         [StilltermPreviewTest]::SendMessageW($combo, 0x014E, [UIntPtr]1, [IntPtr]::Zero) | Out-Null
+        [StilltermPreviewTest]::SetWindowTextW([StilltermPreviewTest]::GetDlgItem($window, 27), 'changed') | Out-Null
         [StilltermPreviewTest]::SendMessageW($window, 0x0111, [UIntPtr]2, [IntPtr]::Zero) | Out-Null
         [StilltermPreviewTest]::Pump(300)
         if (-not $process.WaitForExit(5000)) { throw 'Cancel did not close settings' }

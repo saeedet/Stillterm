@@ -21,10 +21,11 @@ impl Drop for UiFont {
 
 struct Form {
     theme: HWND,
+    word_frequency: HWND,
     fields: Vec<HWND>,
     running: bool,
 }
-const LABELS: [&str; 7] = [
+const LABELS: [&str; 8] = [
     "Speed (0.1–4)",
     "Density (0–1)",
     "Brightness (0–1)",
@@ -32,6 +33,7 @@ const LABELS: [&str; 7] = [
     "Character size (10–48)",
     "Seed",
     "Characters (blank = preset)",
+    "Words (one per line)",
 ];
 
 fn save(settings: &Settings) -> Result<(), String> {
@@ -73,7 +75,7 @@ fn save(settings: &Settings) -> Result<(), String> {
 unsafe fn field_text(hwnd: HWND) -> String {
     // SAFETY: hwnd is one of this form's live text controls; buffer size is bounded.
     unsafe {
-        let mut buffer = vec![0u16; 2049];
+        let mut buffer = vec![0u16; 8193];
         let length = GetWindowTextW(hwnd, buffer.as_mut_ptr(), buffer.len() as i32);
         String::from_utf16_lossy(&buffer[..length.max(0) as usize])
     }
@@ -112,6 +114,14 @@ unsafe fn read_form(form: &Form) -> Result<Settings, String> {
                 .parse()
                 .map_err(|_| "Seed must be a nonnegative whole number")?,
             characters: fields[6].clone(),
+            words: fields[7].clone(),
+            word_frequency: match SendMessageW(form.word_frequency, CB_GETCURSEL, 0, 0) {
+                0 => "rare",
+                1 => "occasional",
+                2 => "frequent",
+                _ => return Err("Choose a word frequency".into()),
+            }
+            .into(),
         };
         settings.validate()?;
         Ok(settings)
@@ -265,6 +275,7 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
         }
         let mut form = Box::new(Form {
             theme: null_mut(),
+            word_frequency: null_mut(),
             fields: vec![],
             running: false,
         });
@@ -276,7 +287,7 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
             CW_USEDEFAULT,
             CW_USEDEFAULT,
             px(530),
-            px(430),
+            px(550),
             owner,
             null_mut(),
             instance,
@@ -294,7 +305,7 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
                 CW_USEDEFAULT,
                 CW_USEDEFAULT,
                 px(530),
-                px(430),
+                px(550),
                 owner,
                 null_mut(),
                 instance,
@@ -367,6 +378,7 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
                 settings.font_size.to_string(),
                 settings.seed.to_string(),
                 settings.characters,
+                settings.words,
             ];
             for (i, label) in LABELS.iter().enumerate() {
                 let y = 58 + i as i32 * 36;
@@ -374,27 +386,79 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
                 let field = control(
                     "EDIT",
                     &values[i],
-                    WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL as u32,
+                    WS_TABSTOP
+                        | WS_BORDER
+                        | if i == 7 {
+                            WS_VSCROLL
+                                | ES_MULTILINE as u32
+                                | ES_AUTOVSCROLL as u32
+                                | ES_WANTRETURN as u32
+                        } else {
+                            ES_AUTOHSCROLL as u32
+                        },
                     20 + i,
                     225,
                     y,
                     270,
-                    26,
+                    if i == 7 { 80 } else { 26 },
                 )?;
-                SendMessageW(field, EM_SETLIMITTEXT, if i == 6 { 1024 } else { 32 }, 0);
+                SendMessageW(
+                    field,
+                    EM_SETLIMITTEXT,
+                    match i {
+                        6 => 1024,
+                        7 => 8192,
+                        _ => 32,
+                    },
+                    0,
+                );
                 form.fields.push(field);
             }
+            control(
+                "STATIC",
+                "Word frequency (blank words = off)",
+                0,
+                0,
+                20,
+                410,
+                205,
+                40,
+            )?;
+            form.word_frequency = control(
+                "COMBOBOX",
+                "",
+                WS_TABSTOP | CBS_DROPDOWNLIST as u32 | WS_VSCROLL,
+                11,
+                225,
+                405,
+                270,
+                150,
+            )?;
+            for frequency in ["Rare", "Occasional", "Frequent"] {
+                SendMessageW(
+                    form.word_frequency,
+                    CB_ADDSTRING,
+                    0,
+                    wide(frequency).as_ptr() as isize,
+                );
+            }
+            let frequency = match settings.word_frequency.as_str() {
+                "rare" => 0,
+                "frequent" => 2,
+                _ => 1,
+            };
+            SendMessageW(form.word_frequency, CB_SETCURSEL, frequency, 0);
             control(
                 "BUTTON",
                 "Save",
                 WS_TABSTOP | BS_DEFPUSHBUTTON as u32,
                 1,
                 310,
-                330,
+                463,
                 85,
                 30,
             )?;
-            control("BUTTON", "Cancel", WS_TABSTOP, 2, 410, 330, 85, 30)?;
+            control("BUTTON", "Cancel", WS_TABSTOP, 2, 410, 463, 85, 30)?;
             form.running = true;
             if !owner.is_null() {
                 EnableWindow(owner, 0);

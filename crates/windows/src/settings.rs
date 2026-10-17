@@ -13,6 +13,8 @@ pub struct Settings {
     pub density: Option<f64>,
     pub intensity: Option<f64>,
     pub characters: String,
+    pub words: String,
+    pub word_frequency: String,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -25,6 +27,8 @@ impl Default for Settings {
             density: None,
             intensity: None,
             characters: String::new(),
+            words: String::new(),
+            word_frequency: "occasional".into(),
         }
     }
 }
@@ -51,6 +55,7 @@ impl Settings {
                 &self.characters
             },
         )
+        .and_then(|effect| effect.with_words(&self.words, self.word_frequency.parse()?))
         .map_err(|e| e.to_string())?;
         Ok((theme, effect))
     }
@@ -70,6 +75,11 @@ impl Settings {
             "theme = \"{}\"\nfps = {}\nfont_size = {}\nseed = {}\ncharacters = {}\n",
             self.theme, self.fps, self.font_size, self.seed, chars
         );
+        text.push_str(&format!(
+            "words = {}\nword_frequency = {}\n",
+            toml::Value::String(self.words.clone()),
+            toml::Value::String(self.word_frequency.clone())
+        ));
         for (key, value) in [
             ("speed", self.speed),
             ("density", self.density),
@@ -98,9 +108,14 @@ mod tests {
         }
         let settings = Settings {
             characters: "01\"\\".into(),
+            words: "anything\r\nwake up \"Neo\"".into(),
+            word_frequency: "frequent".into(),
             speed: Some(0.5),
             ..Settings::default()
         };
+        let roundtrip = Settings::parse(&settings.to_toml().unwrap()).unwrap();
+        assert_eq!(roundtrip.words, settings.words);
+        assert_eq!(roundtrip.word_frequency, "frequent");
         assert_eq!(
             Settings::parse(&settings.to_toml().unwrap())
                 .unwrap()
@@ -119,6 +134,8 @@ mod tests {
             "characters = '界'",
             "seed = -1",
             "speeed = 1",
+            "words = '界'",
+            "word_frequency = 'sometimes'",
         ] {
             assert!(Settings::parse(input).is_err(), "{input}");
         }
