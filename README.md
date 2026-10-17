@@ -116,11 +116,14 @@ stillterm --theme matrix --words 'anything' --word-frequency frequent
 stillterm --config examples/words.toml
 ```
 
-The first phrase appears after roughly 3–5 seconds. Letters resolve horizontally,
-remain readable for about two seconds, and dissolve into the continuing rain.
-Later pauses are 4–7 seconds (Frequent), 12–20 seconds (Occasional), or 30–50 seconds
-(Rare). Only phrases that fit the current grid are shown. Up to 16 phrases of 64
-printable, single-column characters are supported; spaces inside phrases are kept.
+Words read from top to bottom inside a falling stream. They use the same font,
+colors, brightness gradient, and head highlight as the surrounding rain, and move
+down with their column. The first attempt is after roughly 3–5 seconds, then waits
+for a suitable stream; speed and density affect when it appears. After a word leaves
+the screen, pauses are 4–7 seconds (Frequent), 12–20 seconds (Occasional), or 30–50
+seconds (Rare). Phrases taller than the current grid are skipped. Up to 16 phrases
+of 64 printable, single-column characters are supported; spaces create gaps in the
+vertical word. Zero density disables both rain and words.
 The text stays in local settings and is not sent to a service.
 
 ## Configure

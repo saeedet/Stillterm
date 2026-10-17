@@ -46,14 +46,17 @@ CLI's single-column validation. Monochrome is the default.
 
 Build 6 adds **Words / phrases**, one per line, and a **Word frequency** selector.
 Empty text disables phrases. Up to 16 phrases of 64 printable, single-column
-characters are supported. Theme changes keep your phrases and frequency. The first
-phrase appears in roughly 3–5 seconds; later pauses follow the frequency choice.
-Phrases wider than the current preview are skipped; try full-screen preview or a
-shorter phrase. Save applies the change; Cancel preserves the previous settings.
+characters are supported. Theme changes keep your phrases and frequency.
+Build 7 places words vertically within real falling streams, using their existing
+brightness, colors, and fading trails. Words read from top to bottom and travel
+down with the column. The first attempt is after roughly 3–5 seconds; actual timing
+also depends on rain speed and density. Phrases taller than the preview are skipped;
+try full-screen preview or a shorter word. Save applies the change; Cancel preserves
+the previous settings.
 The text stays in local preferences.
 
 The phrase-enabled build is for local evaluation. The disk image submitted for
-notarization on 2026-10-17 is the preserved build 5, without phrases; build 6 needs
+notarization on 2026-10-17 is the preserved build 5, without phrases; the current build needs
 its own submission before public distribution.
 
 Preferences use Apple's `ScreenSaverDefaults`, under
