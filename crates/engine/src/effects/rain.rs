@@ -89,7 +89,7 @@ impl Effect for Rain {
                 self.streams[column] = self.stream(false);
             }
         }
-        if let Some((column, length)) = self.words.step(
+        self.words.step(
             &self.config.words,
             self.size,
             self.streams
@@ -97,9 +97,7 @@ impl Effect for Rain {
                 .enumerate()
                 .filter(|(_, stream)| stream.active)
                 .map(|(column, stream)| (column, stream.salt, stream.head / 256)),
-        ) {
-            self.streams[column].length = self.streams[column].length.max(length);
-        }
+        );
     }
 
     fn render(&self, frame: &mut Frame) {
@@ -119,31 +117,20 @@ impl Effect for Rain {
                 hash = (hash ^ (hash >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
                 hash = (hash ^ (hash >> 27)).wrapping_mul(0x94d049bb133111eb);
                 hash ^= hash >> 31;
-                let word =
-                    self.words
-                        .glyph(&self.config.words, column, stream.salt, head_row - row);
-                let glyph = word.unwrap_or(
-                    self.config.glyphs[(hash % self.config.glyphs.len() as u64) as usize],
-                );
-                // Every letter receives the same bright treatment as the head.
-                // The surrounding random glyphs retain the stream's fading trail.
-                let intensity = if word.is_some() {
-                    let head_remaining = stream.length * 256 - stream.head % 256;
-                    (head_remaining * 255 / (stream.length * 256)) * self.config.intensity / 1000
-                } else {
-                    intensity
-                };
+                let glyph = self.config.glyphs[(hash % self.config.glyphs.len() as u64) as usize];
                 frame.set(
                     column as u16,
                     row as u16,
                     Cell {
                         glyph,
                         intensity: intensity as u8,
-                        emphasis: word.is_some() || row == head_row,
+                        emphasis: row == head_row,
                     },
                 );
             }
         }
+        self.words
+            .render(&self.config.words, self.config.intensity, frame);
     }
 }
 
@@ -200,7 +187,7 @@ mod word_style_tests {
     use rand_chacha::rand_core::SeedableRng;
 
     #[test]
-    fn every_word_letter_uses_the_heads_brightness_and_highlight() {
+    fn completed_word_holds_all_letters_bright_without_changing_the_rain() {
         let size = GridSize::new(40, 20).unwrap();
         let config = EffectConfig::new(1.6, 0.35, 1.0, "01")
             .unwrap()
@@ -235,12 +222,9 @@ mod word_style_tests {
         rain.words.resize();
         rain.render(&mut plain);
         let mut changed = 0;
-        for (index, (word, ordinary)) in words.cells().iter().zip(plain.cells()).enumerate() {
+        for (word, ordinary) in words.cells().iter().zip(plain.cells()) {
             if word.glyph != ordinary.glyph {
-                let column = index % usize::from(size.columns());
-                let head = rain.streams[column].head as usize / 256;
-                let head_cell = plain.cells()[head * usize::from(size.columns()) + column];
-                assert_eq!(word.intensity, head_cell.intensity);
+                assert_eq!(word.intensity, 255);
                 assert!(word.emphasis, "a word letter lost its bright highlight");
                 changed += 1;
             } else {

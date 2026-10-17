@@ -26,36 +26,40 @@ fn has_phrase(engine: &mut Engine, phrase: &str) -> bool {
 }
 
 #[test]
-fn phrases_fall_vertically_inside_a_stream_then_leave_the_screen() {
+fn phrases_stay_fixed_as_the_head_reveals_them_then_fade_back_into_the_same_rain() {
     for theme in [Theme::Matrix, Theme::Monochrome] {
         let size = GridSize::new(48, 18).unwrap();
         let mut words = Engine::rain(
             size,
             theme
                 .rain_config()
-                .with_words("anything", WordFrequency::Occasional)
+                .with_words("FREE", WordFrequency::Occasional)
                 .unwrap(),
             42,
         );
-        let mut first = None;
-        let mut moved = false;
+        let mut plain = Engine::rain(size, theme.rain_config(), 42);
+        let mut position = None;
         let mut disappeared = false;
-        for _ in 0..480 {
+        for _ in 0..600 {
             words.step();
-            let position = phrase_position(&mut words, "anything");
-            if let Some(position) = position {
-                if let Some((column, row)) = first {
-                    moved |= position.0 == column && position.1 > row;
+            plain.step();
+            if let Some(current) = phrase_position(&mut words, "FREE") {
+                if let Some(previous) = position {
+                    assert_eq!(current, previous, "word moved after it was revealed");
                 } else {
-                    first = Some(position);
+                    position = Some(current);
                 }
-            } else if first.is_some() {
+            }
+            if position.is_some() && words.frame() == plain.frame() {
                 disappeared = true;
+                break;
             }
         }
-        assert!(first.is_some(), "phrase never appeared");
-        assert!(moved, "phrase did not move down with its stream");
-        assert!(disappeared, "phrase never left the screen");
+        assert!(position.is_some(), "phrase never appeared");
+        assert!(
+            disappeared,
+            "phrase did not fade back into the unchanged rain"
+        );
     }
 }
 
