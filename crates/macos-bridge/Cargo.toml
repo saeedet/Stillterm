@@ -13,6 +13,9 @@ crate-type = ["staticlib", "rlib"]
 [dependencies]
 stillterm-engine = { path = "../engine" }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+stillterm-gpu = { path = "../gpu" }
+
 [lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
 

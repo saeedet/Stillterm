@@ -130,9 +130,11 @@ impl Effect for Rain {
                     intensity = intensity * depth / 255;
                     // Dense sheets collect near the top and disappear into the
                     // distance toward the bottom; heads remain distinct.
-                    let height = u32::from(self.size.rows()).max(1);
-                    let falloff = ((height - row) * 255 / (height * 45 / 100).max(1)).min(255);
-                    intensity = intensity * falloff * falloff / (255 * 255);
+                    if self.config.vertical_fade {
+                        let height = u32::from(self.size.rows()).max(1);
+                        let falloff = ((height - row) * 255 / (height * 45 / 100).max(1)).min(255);
+                        intensity = intensity * falloff * falloff / (255 * 255);
+                    }
                 }
                 // Integer hashing makes glyph choices independent of platform math libraries.
                 let phase = self.tick.wrapping_add(u64::from(row) * 13) / 90;
