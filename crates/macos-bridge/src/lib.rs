@@ -2,6 +2,9 @@
 //! No Rust allocation or borrowed frame escapes this boundary. Calls on each
 //! handle must be serialized. Ordinary unwinding panics poison the handle;
 //! invalid pointers and allocation failure cannot be recovered by this API.
+#[cfg(target_os = "macos")]
+mod gpu;
+
 use std::{
     panic::{AssertUnwindSafe, catch_unwind},
     ptr, slice, str,
@@ -93,7 +96,7 @@ pub struct StEngine {
 fn theme(value: u32) -> Option<Theme> {
     match value {
         0 => Some(Theme::Monochrome),
-        1 => Some(Theme::Matrix),
+        1 | 3 => Some(Theme::Matrix),
         2 => Some(Theme::DenseMatrix),
         _ => None,
     }
@@ -120,8 +123,8 @@ pub unsafe extern "C" fn st_defaults(value: u32, output: *mut StOptions) -> i32 
         output.write(StOptions {
             theme: value,
             seed: 42,
-            speed: defaults.speed,
-            density: defaults.density,
+            speed: if value == 3 { 1.0 } else { defaults.speed },
+            density: if value == 3 { 0.95 } else { defaults.density },
             intensity: defaults.intensity,
             word_frequency: 1,
         });

@@ -83,7 +83,7 @@
         NSTextField *label = [NSTextField labelWithString:@"Theme"];
         label.frame = NSMakeRect(24, 596, 115, 24); [content addSubview:label];
         _theme = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(145, 594, 265, 28) pullsDown:NO];
-        [_theme addItemsWithTitles:@[@"Monochrome", @"Matrix", @"Dense Matrix"]];
+        [_theme addItemsWithTitles:@[@"Monochrome", @"Matrix", @"Dense Matrix", @"Matrix 3D (experimental)"]];
         [_theme selectItemAtIndex:settings.options.theme];
         _theme.target = self; _theme.action = @selector(themeChanged:);
         _theme.accessibilityLabel = @"Theme";

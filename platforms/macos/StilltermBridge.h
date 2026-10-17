@@ -10,7 +10,7 @@
 // Panics poison a handle (destroy it); invalid pointers/OOM are not recoverable.
 typedef struct StEngine StEngine;
 typedef struct {
-    uint32_t theme; // 0 monochrome, 1 Matrix, 2 Dense Matrix
+    uint32_t theme; // 0 monochrome, 1 Matrix, 2 Dense Matrix, 3 Matrix 3D
     uint64_t seed;
     double speed, density, intensity;
     uint32_t word_frequency; // 0 rare, 1 occasional, 2 frequent
@@ -39,4 +39,18 @@ int32_t st_advance(StEngine *, uint64_t elapsed_ns);
 // Capacity in cells, at least columns * rows. Zero-sized frames allow NULL.
 int32_t st_copy_frame(StEngine *, StCell *output, size_t capacity);
 void st_destroy(StEngine *);
+// GPU handles use the same main-thread ownership rules as the native layer.
+typedef struct StGpu StGpu;
+typedef struct { const uint8_t *characters; size_t characters_length;
+    const uint8_t *words; size_t words_length; } StGpuText;
+typedef struct { const uint8_t *pixels; size_t length;
+    uint32_t width, height, tile_width, tile_height; } StAtlas;
+size_t st_corridor_glyphs(StGpuText text, uint32_t *output, size_t capacity);
+StGpu *st_corridor_create(void *layer, uint32_t width, uint32_t height,
+    StOptions options, StGpuText text, StAtlas atlas, double character_size);
+int32_t st_corridor_resize(StGpu *, uint32_t width, uint32_t height);
+int32_t st_corridor_render(StGpu *, uint64_t elapsed_ns);
+// Diagnostic RGBA pixels only; capacity >= width * height * 4.
+int32_t st_corridor_snapshot(StGpu *, uint8_t *output, size_t capacity);
+void st_corridor_destroy(StGpu *);
 #endif

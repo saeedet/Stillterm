@@ -54,6 +54,12 @@ int main(int argc, const char *argv[]) {
                 view.wantsLayer = YES;
                 [window.contentView addSubview:view];
                 [view startAnimation];
+                if (!dense) {
+                    StilltermSettings *settings = [view valueForKey:@"settings"];
+                    StOptions options = settings.options;
+                    options.theme = 0; options.speed = 1; options.density = 0.18; options.intensity = 0.7;
+                    settings.options = options; settings.characters = @""; settings.words = @""; settings.fontSize = 18;
+                }
                 if (dense) {
                     StilltermSettings *settings = [view valueForKey:@"settings"];
                     StOptions options = settings.options;

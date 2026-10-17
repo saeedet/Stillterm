@@ -73,6 +73,11 @@ int main(void) {
         loaded = [[StilltermSettings alloc] initWithDefaults:defaults];
         require(loaded.options.theme == 2 && loaded.fontSize == 10 && [loaded.words isEqual:@"anything\nwake up"] &&
             loaded.options.word_frequency == 2, "dense theme round trip preserves words");
+        [theme selectItemAtIndex:3]; [NSApp sendAction:theme.action to:theme.target from:theme];
+        [save performClick:nil];
+        loaded = [[StilltermSettings alloc] initWithDefaults:defaults];
+        require(loaded.options.theme == 3 && loaded.fontSize == 18 && [loaded.words isEqual:@"anything\nwake up"],
+            "experimental 3D mode persists and preserves words");
         [theme selectItemAtIndex:1]; [NSApp sendAction:theme.action to:theme.target from:theme];
         require([[(NSTextField *)fields[@"Character size"] stringValue] isEqual:@"18"], "leaving dense restores regular character size");
         __block BOOL canceled = NO;

@@ -27,6 +27,7 @@ pub struct Renderer {
     atlas_size: [f32; 4],
     character_scale: f32,
     speed: f32,
+    surface_misses: u32,
 }
 impl Renderer {
     /// # Safety
@@ -218,6 +219,7 @@ impl Renderer {
             ],
             character_scale: scale_speed[0],
             speed: scale_speed[1],
+            surface_misses: 0,
         })
     }
     pub fn resize(&mut self, size: [u32; 2]) -> Result<(), String> {
@@ -286,13 +288,23 @@ impl Renderer {
         self.upload();
         let frame = match self.surface.get_current_texture() {
             Ok(frame) => frame,
-            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                self.surface.configure(&self.device, &self.config);
+            Err(
+                error @ (wgpu::SurfaceError::Lost
+                | wgpu::SurfaceError::Outdated
+                | wgpu::SurfaceError::Timeout),
+            ) => {
+                self.surface_misses += 1;
+                if !matches!(error, wgpu::SurfaceError::Timeout) {
+                    self.surface.configure(&self.device, &self.config);
+                }
+                if self.surface_misses >= 30 {
+                    return Err("GPU surface remained unavailable for 30 frames".into());
+                }
                 return Ok(());
             }
-            Err(wgpu::SurfaceError::Timeout) => return Ok(()),
             Err(error) => return Err(error.to_string()),
         };
+        self.surface_misses = 0;
         let mut encoder = self.device.create_command_encoder(&Default::default());
         self.draw(
             &mut encoder,

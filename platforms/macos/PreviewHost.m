@@ -2,6 +2,7 @@
 #import <Cocoa/Cocoa.h>
 #import <ScreenSaver/ScreenSaver.h>
 #import "StilltermSettings.h"
+#import "StilltermCorridor.h"
 #include <sys/resource.h>
 #include <mach/mach.h>
 
@@ -94,6 +95,103 @@ static NSUInteger visiblePixels(NSBitmapImageRep *rep, BOOL greenOnly) {
     }
     return count;
 }
+static void startRain(ScreenSaverView *view) {
+    [view startAnimation];
+    StilltermSettings *settings = [view valueForKey:@"settings"];
+    StOptions options = settings.options;
+    options.theme = 1; options.speed = 1.6; options.density = 0.35; options.intensity = 1;
+    settings.options = options; settings.fontSize = 18; settings.characters = @""; settings.words = @"";
+}
+static NSBitmapImageRep *corridorSnapshot(ScreenSaverView *view) {
+    STCorridorView *corridor = [view valueForKey:@"corridor"];
+    NSData *pixels = [corridor snapshot];
+    if (!pixels) return nil;
+    NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:corridor.pixelWidth
+        pixelsHigh:corridor.pixelHeight bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO
+        colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:corridor.pixelWidth * 4 bitsPerPixel:32];
+    memcpy(rep.bitmapData, pixels.bytes, pixels.length);
+    return rep;
+}
+static double footprintMiB(void) {
+    task_vm_info_data_t info = {0}; mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+    require(task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&info, &count) == KERN_SUCCESS, @"Read footprint");
+    return info.phys_footprint / 1048576.0;
+}
+static void configureCorridor(ScreenSaverView *view) {
+    StilltermSettings *settings = [view valueForKey:@"settings"];
+    StOptions options = settings.options;
+    options.theme = 3; options.speed = 1; options.density = 0.95; options.intensity = 1;
+    options.seed = 42; options.word_frequency = 2;
+    settings.options = options; settings.characters = @""; settings.words = @"FREE"; settings.fontSize = 18;
+    view.animationTimeInterval = 1.0 / 30;
+}
+static void checkCorridor(ScreenSaverView *view, const char *filename) {
+    configureCorridor(view); pump(2.0);
+    if ([[view valueForKey:@"gpuUnavailable"] boolValue]) {
+        require(visiblePixels(snapshot(view), YES) > 100, @"GPU unavailable fallback still renders rain");
+        [view stopAnimation];
+        puts("SKIP GPU drawing: Metal unavailable; Dense Matrix fallback passed"); return;
+    }
+    NSBitmapImageRep *first = corridorSnapshot(view);
+    require(first != nil && visiblePixels(first, YES) > 1000, @"GPU corridor draws green code");
+    NSData *before = [NSData dataWithBytes:first.bitmapData length:first.bytesPerRow * first.pixelsHigh];
+    struct rusage begin, end; getrusage(RUSAGE_SELF, &begin);
+    CFTimeInterval start = NSProcessInfo.processInfo.systemUptime;
+    NSUInteger frames = [[view valueForKey:@"drawnFrames"] unsignedIntegerValue];
+    pump(5.0); getrusage(RUSAGE_SELF, &end);
+    double elapsed = NSProcessInfo.processInfo.systemUptime - start;
+    double cpu = (end.ru_utime.tv_sec - begin.ru_utime.tv_sec) + (end.ru_utime.tv_usec - begin.ru_utime.tv_usec) / 1e6
+        + (end.ru_stime.tv_sec - begin.ru_stime.tv_sec) + (end.ru_stime.tv_usec - begin.ru_stime.tv_usec) / 1e6;
+    STCorridorView *corridor = [view valueForKey:@"corridor"];
+    printf("Matrix 3D: %ux%u GPU pixels; %.2f%% of one CPU core; %.1f submissions/s; footprint %.1f MiB; peak RSS %.1f MiB\n",
+        corridor.pixelWidth, corridor.pixelHeight, cpu / elapsed * 100,
+        ([[view valueForKey:@"drawnFrames"] unsignedIntegerValue] - frames) / elapsed, footprintMiB(), end.ru_maxrss / 1048576.0);
+    NSBitmapImageRep *next = corridorSnapshot(view);
+    require(next && ![before isEqual:[NSData dataWithBytes:next.bitmapData length:next.bytesPerRow * next.pixelsHigh]],
+        @"Camera and corridor rain animate");
+    [view.window setValue:@YES forKey:@"simulateRemoteVisibility"];
+    [view animateOneFrame];
+    require(corridorSnapshot(view) != nil, @"Remote host visibility does not suppress GPU rendering");
+    [view.window setValue:@NO forKey:@"simulateRemoteVisibility"];
+    if (filename) require([[next representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
+        writeToFile:[NSString stringWithUTF8String:filename] atomically:YES], @"Write actual GPU snapshot");
+    corridor = nil;
+    [view setFrameSize:NSMakeSize(320, 180)]; [view animateOneFrame]; pump(0.1);
+    require(corridorSnapshot(view) != nil, @"GPU resize renders");
+    [view setFrameSize:NSZeroSize]; [view animateOneFrame];
+    require(![(STCorridorView *)[view valueForKey:@"corridor"] ready], @"Zero size releases the GPU renderer");
+    [view setFrameSize:NSMakeSize(800, 500)]; [view animateOneFrame]; pump(0.1);
+    [NSWorkspace.sharedWorkspace.notificationCenter postNotificationName:NSWorkspaceWillSleepNotification object:nil];
+    require([view valueForKey:@"corridor"] == nil, @"Sleep releases GPU view and renderer");
+    [NSWorkspace.sharedWorkspace.notificationCenter postNotificationName:NSWorkspaceDidWakeNotification object:nil];
+    [view animateOneFrame]; pump(0.1);
+    require(corridorSnapshot(view) != nil, @"GPU resumes after wake");
+    [view stopAnimation];
+    double warm = 0;
+    for (int i = 0; i < 6; i++) {
+        __weak STCorridorView *old;
+        @autoreleasepool {
+            [view startAnimation]; configureCorridor(view); [view animateOneFrame]; pump(0.1);
+            require([(STCorridorView *)[view valueForKey:@"corridor"] ready], @"GPU restarts");
+            old = [view valueForKey:@"corridor"];
+            [view stopAnimation]; [view animateOneFrame];
+            require([view valueForKey:@"corridor"] == nil, @"Stop and late callback keep GPU resources released");
+            require(!old.ready, @"Stop releases the renderer even if a host retains its view");
+        }
+        pump(0.05); require(old == nil, @"GPU view is destroyed after deferred UI cleanup");
+        pump(0.15);
+        if (i == 1) { pump(2); warm = footprintMiB(); }
+    }
+    pump(2);
+    printf("Stopped GPU footprint %.1f MiB; settled growth %.1f MiB\n", footprintMiB(), footprintMiB() - warm);
+    require(footprintMiB() - warm < 64, @"Repeated GPU restarts do not retain drawing surfaces");
+    [view startAnimation]; configureCorridor(view);
+    [view setValue:@YES forKey:@"gpuUnavailable"]; [view animateOneFrame]; pump(0.1);
+    require(visiblePixels(snapshot(view), YES) > 100, @"GPU failure fallback renders Dense Matrix");
+    [view stopAnimation];
+    puts("PASS GPU drawing, animation, resize, zero size, sleep/wake, and repeated stop cleanup");
+}
+
 // Remote screensaver surfaces need not report desktop-window visibility.
 @interface STRemoteVisibilityWindow : NSWindow
 @property(nonatomic) BOOL simulateRemoteVisibility;
@@ -122,8 +220,10 @@ static NSUInteger visiblePixels(NSBitmapImageRep *rep, BOOL greenOnly) {
 
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
-        if (argc < 2) { fprintf(stderr, "Usage: preview-host bundle [--check|--dense|--measure-dense [snapshot.png]]\n"); return 2; }
+        if (argc < 2) { fprintf(stderr, "Usage: preview-host bundle [--check|--dense|--measure-dense|--corridor|--check-corridor [snapshot.png]]\n"); return 2; }
         BOOL check = argc >= 3 && strcmp(argv[2], "--check") == 0;
+        BOOL check3D = argc >= 3 && strcmp(argv[2], "--check-corridor") == 0;
+        BOOL corridorMode = check3D || (argc >= 3 && strcmp(argv[2], "--corridor") == 0);
         BOOL measureDense = argc >= 3 && strcmp(argv[2], "--measure-dense") == 0;
         BOOL dense = measureDense || (argc >= 3 && strcmp(argv[2], "--dense") == 0);
         [NSApplication sharedApplication];
@@ -135,7 +235,7 @@ int main(int argc, const char *argv[]) {
         require([viewClass isSubclassOfClass:ScreenSaverView.class], @"Principal class must be a ScreenSaverView");
         STPreviewDelegate *delegate = [STPreviewDelegate new]; NSApp.delegate = delegate;
         [NSApp finishLaunching];
-        NSSize surface = dense ? NSMakeSize(MIN(1440, NSWidth(NSScreen.mainScreen.visibleFrame) - 80),
+        NSSize surface = (dense || corridorMode) ? NSMakeSize(MIN(1440, NSWidth(NSScreen.mainScreen.visibleFrame) - 80),
             MIN(900, NSHeight(NSScreen.mainScreen.visibleFrame) - 100)) : NSMakeSize(800, 500);
         STRemoteVisibilityWindow *window = [[STRemoteVisibilityWindow alloc] initWithContentRect:NSMakeRect(40, 40, surface.width, surface.height + 40)
             styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable
@@ -151,6 +251,11 @@ int main(int argc, const char *argv[]) {
         [window makeKeyAndOrderFront:nil];
         [NSApp activateIgnoringOtherApps:YES];
         [view startAnimation];
+        if (corridorMode) {
+            configureCorridor(view);
+            if (check3D) { checkCorridor(view, argc >= 4 ? argv[3] : NULL); [window orderOut:nil]; return 0; }
+            [NSApp run]; return 0;
+        }
         if (dense) {
             // A temporary per-view demo; leave the user's saved theme and words intact.
             StilltermSettings *settings = [view valueForKey:@"settings"];
@@ -262,7 +367,7 @@ int main(int argc, const char *argv[]) {
         for (int i = 0; i < 20; i++) {
             __weak NSView *canvas;
             @autoreleasepool {
-                [view startAnimation]; [view animateOneFrame]; pump(0.01);
+                startRain(view); [view animateOneFrame]; pump(0.01);
                 canvas = [view valueForKey:@"canvas"];
                 require(canvas != nil, @"Active animation owns a drawing surface");
                 [view stopAnimation]; [view animateOneFrame];
@@ -272,14 +377,14 @@ int main(int argc, const char *argv[]) {
             pump(0.01);
             require(canvas == nil, @"Stop destroys the drawing view while the host retains its parent");
         }
-        [view startAnimation]; waitForFrame(view);
+        startRain(view); waitForFrame(view);
         ScreenSaverView *second = [[viewClass alloc] initWithFrame:NSMakeRect(0, 0, 200, 120) isPreview:NO];
-        [window.contentView addSubview:second]; [second startAnimation]; waitForFrame(second);
+        [window.contentView addSubview:second]; startRain(second); waitForFrame(second);
         [view stopAnimation];
         require([second valueForKey:@"cells"] != nil, @"A second instance owns independent resources");
-        [view startAnimation]; waitForFrame(view);
+        startRain(view); waitForFrame(view);
         ScreenSaverView *third = [[viewClass alloc] initWithFrame:NSMakeRect(200, 0, 200, 120) isPreview:NO];
-        [window.contentView addSubview:third]; [third startAnimation]; waitForFrame(third);
+        [window.contentView addSubview:third]; startRain(third); waitForFrame(third);
         require([third valueForKey:@"cells"] != nil, @"Both full-screen instances start rendering");
         NSNotification *dismissal = [NSNotification notificationWithName:@"com.apple.screensaver.willstop" object:nil];
         // Reproduce a host retaining multiple attached views and omitting stopAnimation.
@@ -300,7 +405,7 @@ int main(int argc, const char *argv[]) {
             require(!retained.isAnimating && [retained valueForKey:@"cells"] == nil && [retained valueForKey:@"canvas"] == nil,
                 @"Wake must not revive dismissed instances");
         }
-        [second startAnimation]; waitForFrame(second);
+        startRain(second); waitForFrame(second);
         require(second.isAnimating && [second valueForKey:@"cells"] != nil, @"An explicit host restart resumes rendering");
         require([third valueForKey:@"cells"] == nil, @"Restarting one instance leaves older instances stopped");
         [second stopAnimation]; [second removeFromSuperview]; [third removeFromSuperview];
@@ -322,7 +427,7 @@ int main(int argc, const char *argv[]) {
                 writeToFile:[path stringByAppendingString:@"-options.png"] atomically:YES];
         }
         [window endSheet:sheet]; [sheet orderOut:nil];
-        [view startAnimation]; waitForFrame(view);
+        startRain(view); waitForFrame(view);
         struct rusage begin, end; getrusage(RUSAGE_SELF, &begin); CFTimeInterval start = NSProcessInfo.processInfo.systemUptime;
         pump(2.0); getrusage(RUSAGE_SELF, &end);
         double cpu = (end.ru_utime.tv_sec - begin.ru_utime.tv_sec) + (end.ru_utime.tv_usec - begin.ru_utime.tv_usec) / 1e6

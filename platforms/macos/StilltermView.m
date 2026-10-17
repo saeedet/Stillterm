@@ -1,6 +1,7 @@
 #import "StilltermView.h"
 #import "StilltermSettings.h"
 #import "StilltermRenderer.h"
+#import "StilltermCorridor.h"
 #import <CoreText/CoreText.h>
 #import <QuartzCore/QuartzCore.h>
 #include <math.h>
@@ -28,6 +29,8 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 
 @implementation StilltermView {
     StilltermCanvasView *_canvas;
+    STCorridorView *_corridor;
+    BOOL _gpuUnavailable;
     StilltermSettings *_settings;
     StilltermOptionsController *_optionsController;
     id _dismissObserver;
@@ -75,6 +78,7 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 }
 - (BOOL)hasConfigureSheet { return YES; }
 - (void)releaseEngine {
+    [_corridor stopRendering]; [_corridor removeFromSuperview]; _corridor = nil; _gpuUnavailable = NO;
     [_canvas removeFromSuperview]; _canvas = nil;
     _renderLayers = nil; [self releaseBackground];
     _lastTime = 0; _reportedFrame = NO; _layoutDirty = YES;
@@ -139,12 +143,21 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
 }
 - (BOOL)prepareFrame {
     if (!isfinite(NSWidth(self.bounds)) || !isfinite(NSHeight(self.bounds))) return NO;
+    if (_settings.options.theme == 3 && !_gpuUnavailable) {
+        if (!_corridor) {
+            _corridor = [[STCorridorView alloc] initWithFrame:self.bounds settings:_settings];
+            [self addSubview:_corridor];
+        }
+        return YES;
+    }
     if (!_renderLayers) {
         NSMutableArray *layers = [NSMutableArray array];
-        NSUInteger count = _settings.options.theme == 2 ? 3 : 1;
+        StOptions base = _settings.options;
+        if (_gpuUnavailable) base.theme = 2;
+        NSUInteger count = base.theme == 2 ? 3 : 1;
         for (NSUInteger i = 0; i < count; i++) {
-            StDepthLayer depth = {_settings.options, 1, 0};
-            if (count == 3 && st_depth_defaults(_settings.options, (uint32_t)i, &depth) != ST_OK) return NO;
+            StDepthLayer depth = {base, 1, 0};
+            if (count == 3 && st_depth_defaults(base, (uint32_t)i, &depth) != ST_OK) return NO;
             [layers addObject:[[STRainLayer alloc] initWithOptions:depth.options fontScale:depth.font_scale
                 offset:depth.offset characters:_settings.characters words:i + 1 == count ? _settings.words : @""]];
         }
@@ -206,6 +219,12 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     CFTimeInterval now = CACurrentMediaTime();
     uint64_t elapsed = _lastTime > 0 ? (uint64_t)(MAX(0.0, MIN(0.25, now - _lastTime)) * 1e9) : 0;
     _lastTime = now;
+    if (_corridor) {
+        if ([_corridor renderElapsed:elapsed]) { _drawnFrames++; return; }
+        os_log_error(OS_LOG_DEFAULT, "Stillterm 3D unavailable; using Dense Matrix");
+        [_corridor stopRendering]; [_corridor removeFromSuperview]; _corridor = nil; _gpuUnavailable = YES; _layoutDirty = YES;
+        if (![self prepareFrame]) { _failed = YES; [self releaseEngine]; return; }
+    }
     for (STRainLayer *layer in _renderLayers) {
         if (![layer advance:elapsed canvas:layer == _renderLayers.lastObject ? _canvas : nil]) {
             os_log_error(OS_LOG_DEFAULT, "Stillterm engine update failed");
@@ -240,6 +259,8 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     }
     [_renderLayers.lastObject drawWithContext:context canvas:canvas batching:!_disableBatchDrawing glow:_renderLayers.count > 1];
     CGContextRestoreGState(context);
+    if (_gpuUnavailable) [@"3D is unavailable; showing Dense Matrix." drawAtPoint:NSMakePoint(16, 16)
+        withAttributes:@{NSFontAttributeName:[NSFont systemFontOfSize:12], NSForegroundColorAttributeName:NSColor.whiteColor}];
 }
 - (void)dealloc {
     [NSWorkspace.sharedWorkspace.notificationCenter removeObserver:self];
