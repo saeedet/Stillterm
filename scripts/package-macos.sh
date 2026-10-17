@@ -4,7 +4,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 bundle="$PWD/target/macos/Stillterm.saver"
 if [[ ! -d "$bundle" ]]; then echo "Build first with scripts/build-macos.sh" >&2; exit 1; fi
-xcrun lipo "$bundle/Contents/MacOS/Stillterm" -verify_arch arm64 x86_64
+for arch in arm64 x86_64; do
+  xcrun lipo "$bundle/Contents/MacOS/Stillterm" -verify_arch "$arch"
+done
 codesign --verify --strict "$bundle"
 staging="$(mktemp -d "${TMPDIR:-/tmp}/stillterm-package.XXXXXX")"
 trap 'rm -rf "$staging"' EXIT

@@ -20,6 +20,9 @@ has been published.
 
 ### Fixed
 
+- macOS disk-image packaging checks each required architecture separately for
+  compatibility with the installed Xcode tools.
+
 - macOS black previews and stale theme preferences across screensaver hosts.
 - Drawing resources retained by stopped macOS views; build 5 releases its canvas
   and passes the retained-view memory regression check.
