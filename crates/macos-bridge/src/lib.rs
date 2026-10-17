@@ -7,7 +7,7 @@ use std::{
     ptr, slice, str,
     time::Duration,
 };
-use stillterm_engine::{EffectConfig, Engine, GridSize, StepClock, Theme};
+use stillterm_engine::{EffectConfig, Engine, GridSize, StepClock, Theme, WordFrequency};
 
 pub const OK: i32 = 0;
 pub const INVALID: i32 = -1;
@@ -22,6 +22,7 @@ pub struct StOptions {
     pub speed: f64,
     pub density: f64,
     pub intensity: f64,
+    pub word_frequency: u32,
 }
 
 #[repr(C)]
@@ -73,16 +74,15 @@ pub unsafe extern "C" fn st_defaults(value: u32, output: *mut StOptions) -> i32 
             speed: defaults.speed,
             density: defaults.density,
             intensity: defaults.intensity,
+            word_frequency: 1,
         });
     }
     OK
 }
 
-/// Create an independently owned engine; null means invalid input or panic.
-/// A zero byte length selects the theme's characters; UTF-8 is copied otherwise.
+/// Create an engine without optional phrases. See `st_create_words`.
 /// # Safety
-/// For nonzero length, characters must point to that many readable bytes for this
-/// call (maximum 1024). No pointer is retained.
+/// The character buffer follows the `st_create_words` contract.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn st_create(
     columns: u32,
@@ -91,10 +91,34 @@ pub unsafe extern "C" fn st_create(
     characters: *const u8,
     length: usize,
 ) -> *mut StEngine {
+    // SAFETY: forward the caller's character buffer; no words buffer is read.
+    unsafe { st_create_words(columns, rows, options, characters, length, ptr::null(), 0) }
+}
+
+/// Create an independently owned engine; null means invalid input or panic.
+/// A zero byte length selects the theme's characters; UTF-8 is copied otherwise.
+/// # Safety
+/// For nonzero length, characters must point to that many readable bytes for this
+/// call (maximum 1024). For nonzero words_length, words must point to that many
+/// readable UTF-8 bytes (maximum 8192). No pointer is retained.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn st_create_words(
+    columns: u32,
+    rows: u32,
+    options: StOptions,
+    characters: *const u8,
+    length: usize,
+    words: *const u8,
+    words_length: usize,
+) -> *mut StEngine {
     catch_unwind(AssertUnwindSafe(|| {
         let theme = theme(options.theme)?;
         let size = size(columns, rows)?;
-        if length > 1024 || (length != 0 && characters.is_null()) {
+        if length > 1024
+            || (length != 0 && characters.is_null())
+            || words_length > 8192
+            || (words_length != 0 && words.is_null())
+        {
             return None;
         }
         let defaults = theme.rain_defaults();
@@ -104,12 +128,25 @@ pub unsafe extern "C" fn st_create(
             // SAFETY: caller guarantees readable bytes; length is bounded above.
             str::from_utf8(unsafe { slice::from_raw_parts(characters, length) }).ok()?
         };
+        let frequency = match options.word_frequency {
+            0 => WordFrequency::Rare,
+            1 => WordFrequency::Occasional,
+            2 => WordFrequency::Frequent,
+            _ => return None,
+        };
+        let words = if words_length == 0 {
+            ""
+        } else {
+            // SAFETY: caller guarantees readable bytes; length is bounded above.
+            str::from_utf8(unsafe { slice::from_raw_parts(words, words_length) }).ok()?
+        };
         let config = EffectConfig::new(
             options.speed,
             options.density,
             options.intensity,
             characters,
         )
+        .and_then(|config| config.with_words(words, frequency))
         .ok()?;
         Some(Box::into_raw(Box::new(StEngine {
             engine: Engine::rain(size, config, options.seed),
@@ -240,6 +277,7 @@ mod tests {
             speed: d.speed,
             density: d.density,
             intensity: d.intensity,
+            word_frequency: 1,
         }
     }
     #[test]
@@ -297,6 +335,53 @@ mod tests {
             st_destroy(ptr::null_mut());
         }
     }
+    #[test]
+    fn words_cross_the_bridge_and_match_the_core() {
+        // SAFETY: buffers are readable for creation; handles and frame storage
+        // remain live and exclusively owned, and the handle is destroyed once.
+        unsafe {
+            let text = "anything\nwake up";
+            let handle =
+                st_create_words(40, 20, options(), ptr::null(), 0, text.as_ptr(), text.len());
+            assert!(!handle.is_null());
+            let mut core = Engine::rain(
+                GridSize::new(40, 20).unwrap(),
+                Theme::Matrix
+                    .rain_config()
+                    .with_words(text, WordFrequency::Occasional)
+                    .unwrap(),
+                42,
+            );
+            let mut cells = vec![StCell::default(); 800];
+            for _ in 0..160 {
+                assert_eq!(st_advance(handle, 100_000_000), OK);
+                for _ in 0..3 {
+                    core.step();
+                }
+                assert_eq!(st_copy_frame(handle, cells.as_mut_ptr(), cells.len()), OK);
+                for (native, rust) in cells.iter().zip(core.frame().cells()) {
+                    assert_eq!(native.scalar, rust.glyph.as_char() as u32);
+                    assert_eq!(
+                        [native.red, native.green, native.blue],
+                        Theme::Matrix.rgb(rust.intensity, rust.emphasis)
+                    );
+                }
+            }
+            st_destroy(handle);
+            for (bytes, length) in [
+                (ptr::null(), 1),
+                ([255].as_ptr(), 1),
+                ("界".as_ptr(), 3),
+                (ptr::null(), 8193),
+            ] {
+                assert!(st_create_words(1, 1, options(), ptr::null(), 0, bytes, length).is_null());
+            }
+            let mut invalid = options();
+            invalid.word_frequency = 99;
+            assert!(st_create_words(1, 1, invalid, ptr::null(), 0, ptr::null(), 0).is_null());
+        }
+    }
+
     #[test]
     fn panic_is_contained_and_handle_is_poisoned() {
         // SAFETY: exclusively owned handle, destroyed once after poisoning.

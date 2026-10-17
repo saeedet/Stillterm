@@ -13,6 +13,7 @@
         _fps = 30;
         _fontSize = 18;
         _characters = @"";
+        _words = @"";
         // ScreenSaverDefaults caches its own module dictionary across view
         // instances. Refresh it before reading changes saved by another host.
         // This is specific to ScreenSaverDefaults, not ordinary NSUserDefaults.
@@ -22,15 +23,19 @@
             NSArray *numeric = @[@"theme", @"seed", @"speed", @"density", @"intensity", @"fps", @"fontSize"];
             BOOL valid = [saved[@"characters"] isKindOfClass:NSString.class];
             for (NSString *key in numeric) valid &= [saved[key] isKindOfClass:NSNumber.class];
+            valid &= !saved[@"words"] || [saved[@"words"] isKindOfClass:NSString.class];
+            valid &= !saved[@"wordFrequency"] || [saved[@"wordFrequency"] isKindOfClass:NSNumber.class];
             if (valid) {
                 _options = (StOptions){[saved[@"theme"] unsignedIntValue], [saved[@"seed"] unsignedLongLongValue],
-                    [saved[@"speed"] doubleValue], [saved[@"density"] doubleValue], [saved[@"intensity"] doubleValue]};
+                    [saved[@"speed"] doubleValue], [saved[@"density"] doubleValue], [saved[@"intensity"] doubleValue],
+                    saved[@"wordFrequency"] ? [saved[@"wordFrequency"] unsignedIntValue] : 1};
                 _fps = [saved[@"fps"] integerValue];
                 _fontSize = [saved[@"fontSize"] doubleValue];
                 _characters = [saved[@"characters"] copy];
+                _words = [saved[@"words"] copy] ?: @"";
             }
             if (!valid || ![self isValid]) {
-                st_defaults(0, &_options); _fps = 30; _fontSize = 18; _characters = @"";
+                st_defaults(0, &_options); _fps = 30; _fontSize = 18; _characters = @""; _words = @"";
             }
         }
     }
@@ -39,8 +44,9 @@
 - (BOOL)isValid {
     if (_fps < 10 || _fps > 60 || !isfinite(_fontSize) || _fontSize < 10 || _fontSize > 48) return NO;
     NSData *data = [_characters dataUsingEncoding:NSUTF8StringEncoding];
-    if (!data) return NO;
-    StEngine *probe = st_create(0, 0, _options, data.bytes, data.length);
+    NSData *words = [_words dataUsingEncoding:NSUTF8StringEncoding];
+    if (!data || !words) return NO;
+    StEngine *probe = st_create_words(0, 0, _options, data.bytes, data.length, words.bytes, words.length);
     if (!probe) return NO;
     st_destroy(probe);
     return YES;
@@ -49,7 +55,8 @@
     if (![self isValid]) return;
     [_defaults setObject:@{@"theme": @(_options.theme), @"seed": @(_options.seed),
         @"speed": @(_options.speed), @"density": @(_options.density), @"intensity": @(_options.intensity),
-        @"fps": @(_fps), @"fontSize": @(_fontSize), @"characters": _characters} forKey:@"SettingsV1"];
+        @"fps": @(_fps), @"fontSize": @(_fontSize), @"characters": _characters,
+        @"words": _words, @"wordFrequency": @(_options.word_frequency)} forKey:@"SettingsV1"];
     [_defaults synchronize];
 }
 @end
@@ -58,11 +65,13 @@
     StilltermSettings *_settings;
     void (^_didApply)(void);
     NSPopUpButton *_theme;
+    NSPopUpButton *_wordFrequency;
+    NSTextView *_words;
     NSMutableDictionary<NSString *, NSTextField *> *_fields;
     NSTextField *_error;
 }
 - (instancetype)initWithSettings:(StilltermSettings *)settings didApply:(void (^)(void))didApply {
-    NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 440, 470)
+    NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 440, 650)
         styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
     if ((self = [super initWithWindow:window])) {
         _settings = settings;
@@ -72,8 +81,8 @@
         window.releasedWhenClosed = NO;
         NSView *content = window.contentView;
         NSTextField *label = [NSTextField labelWithString:@"Theme"];
-        label.frame = NSMakeRect(24, 416, 115, 24); [content addSubview:label];
-        _theme = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(145, 414, 265, 28) pullsDown:NO];
+        label.frame = NSMakeRect(24, 596, 115, 24); [content addSubview:label];
+        _theme = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(145, 594, 265, 28) pullsDown:NO];
         [_theme addItemsWithTitles:@[@"Monochrome", @"Matrix"]];
         [_theme selectItemAtIndex:settings.options.theme];
         _theme.target = self; _theme.action = @selector(themeChanged:);
@@ -86,7 +95,7 @@
             @(settings.fps).stringValue, @(settings.fontSize).stringValue,
             @(settings.options.seed).stringValue, settings.characters];
         for (NSUInteger i = 0; i < names.count; i++) {
-            CGFloat y = 374 - i * 38;
+            CGFloat y = 554 - i * 38;
             NSTextField *title = [NSTextField labelWithString:names[i]];
             title.frame = NSMakeRect(24, y, 122, 24); [content addSubview:title];
             NSTextField *field = [[NSTextField alloc] initWithFrame:NSMakeRect(150, y, 260, 24)];
@@ -94,11 +103,29 @@
             [content addSubview:field]; _fields[names[i]] = field;
         }
         _fields[@"Characters"].placeholderString = @"Blank uses theme characters";
-        NSTextField *hint = [NSTextField wrappingLabelWithString:@"Speed 0.1–4 · Density and brightness 0–1\n10–60 FPS · Character size 10–48 points"];
-        hint.frame = NSMakeRect(24, 89, 390, 42); hint.textColor = NSColor.secondaryLabelColor;
+        NSTextField *wordsLabel = [NSTextField labelWithString:@"Words / phrases"];
+        wordsLabel.frame = NSMakeRect(24, 288, 122, 24); [content addSubview:wordsLabel];
+        NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(150, 218, 260, 94)];
+        scroll.borderType = NSBezelBorder; scroll.hasVerticalScroller = YES;
+        _words = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, 240, 94)];
+        _words.richText = NO; _words.font = [NSFont systemFontOfSize:13];
+        _words.automaticQuoteSubstitutionEnabled = NO; _words.automaticDashSubstitutionEnabled = NO;
+        _words.verticallyResizable = YES; _words.horizontallyResizable = NO;
+        _words.maxSize = NSMakeSize(CGFLOAT_MAX, CGFLOAT_MAX);
+        _words.textContainer.widthTracksTextView = YES;
+        _words.string = settings.words; _words.accessibilityLabel = @"Words / phrases";
+        scroll.documentView = _words; [content addSubview:scroll];
+        NSTextField *frequencyLabel = [NSTextField labelWithString:@"Word frequency"];
+        frequencyLabel.frame = NSMakeRect(24, 178, 122, 24); [content addSubview:frequencyLabel];
+        _wordFrequency = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(145, 176, 265, 28) pullsDown:NO];
+        [_wordFrequency addItemsWithTitles:@[@"Rare", @"Occasional", @"Frequent"]];
+        [_wordFrequency selectItemAtIndex:settings.options.word_frequency];
+        _wordFrequency.accessibilityLabel = @"Word frequency"; [content addSubview:_wordFrequency];
+        NSTextField *hint = [NSTextField wrappingLabelWithString:@"Words: one per line; blank disables. Up to 16 phrases, 64 single-width characters each.\nSpeed 0.1–4 · Density/brightness 0–1 · 10–60 FPS · Size 10–48"];
+        hint.frame = NSMakeRect(24, 111, 390, 58); hint.textColor = NSColor.secondaryLabelColor;
         hint.font = [NSFont systemFontOfSize:11]; [content addSubview:hint];
         _error = [NSTextField wrappingLabelWithString:@""];
-        _error.frame = NSMakeRect(24, 51, 390, 36); _error.textColor = NSColor.systemRedColor;
+        _error.frame = NSMakeRect(24, 54, 390, 54); _error.textColor = NSColor.systemRedColor;
         _error.font = [NSFont systemFontOfSize:11]; [content addSubview:_error];
         NSButton *cancel = [NSButton buttonWithTitle:@"Cancel" target:self action:@selector(cancel:)];
         cancel.frame = NSMakeRect(232, 14, 86, 30); cancel.keyEquivalent = @"\e"; [content addSubview:cancel];
@@ -147,12 +174,14 @@
     StOptions old = _settings.options;
     NSInteger oldFPS = _settings.fps; CGFloat oldSize = _settings.fontSize;
     NSString *oldCharacters = _settings.characters;
-    _settings.options = (StOptions){(uint32_t)_theme.indexOfSelectedItem, seed, values[0], values[1], values[2]};
+    NSString *oldWords = _settings.words;
+    _settings.options = (StOptions){(uint32_t)_theme.indexOfSelectedItem, seed, values[0], values[1], values[2], (uint32_t)_wordFrequency.indexOfSelectedItem};
     _settings.fps = (NSInteger)values[3]; _settings.fontSize = values[4];
     _settings.characters = _fields[@"Characters"].stringValue;
+    _settings.words = _words.string;
     if (![_settings isValid]) {
-        _settings.options = old; _settings.fps = oldFPS; _settings.fontSize = oldSize; _settings.characters = oldCharacters;
-        _error.stringValue = @"Check the ranges. Characters must be printable, single-width (up to 256)."; return;
+        _settings.options = old; _settings.fps = oldFPS; _settings.fontSize = oldSize; _settings.characters = oldCharacters; _settings.words = oldWords;
+        _error.stringValue = @"Check the ranges and use printable, single-width text. Characters: up to 256. Words: 16 lines, up to 64 characters per phrase."; return;
     }
     [_settings save]; if (_didApply) _didApply(); [self finish];
 }

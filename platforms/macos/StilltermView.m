@@ -146,7 +146,8 @@ static NSString *const STDefaultsDomain = @"io.github.saeedet.Stillterm";
     uint32_t width = (uint32_t)columns, height = (uint32_t)rows;
     if (!_engine) {
         NSData *characters = [_settings.characters dataUsingEncoding:NSUTF8StringEncoding];
-        _engine = st_create(width, height, _settings.options, characters.bytes, characters.length);
+        NSData *words = [_settings.words dataUsingEncoding:NSUTF8StringEncoding];
+        _engine = st_create_words(width, height, _settings.options, characters.bytes, characters.length, words.bytes, words.length);
         if (!_engine) return NO;
     } else if ((_columns != width || _rows != height) && st_resize(_engine, width, height) != ST_OK) return NO;
     if (!_cells || _columns != width || _rows != height) {

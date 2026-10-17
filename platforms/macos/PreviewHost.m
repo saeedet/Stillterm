@@ -41,6 +41,20 @@ static NSBitmapImageRep *snapshot(NSView *view) {
     [view cacheDisplayInRect:view.bounds toBitmapImageRep:rep];
     return rep;
 }
+static BOOL containsPhrase(ScreenSaverView *view, const char *phrase) {
+    NSData *data = [view valueForKey:@"cells"];
+    const StCell *cells = data.bytes;
+    NSUInteger count = data.length / sizeof(StCell), length = strlen(phrase);
+    NSUInteger columns = [[view valueForKey:@"columns"] unsignedIntegerValue];
+    if (!columns) return NO;
+    for (NSUInteger i = 0; i + length <= count; i++) {
+        if (i % columns + length > columns) continue;
+        BOOL matches = YES;
+        for (NSUInteger j = 0; j < length; j++) matches &= cells[i + j].scalar == (uint8_t)phrase[j] && cells[i + j].visible;
+        if (matches) return YES;
+    }
+    return NO;
+}
 static NSUInteger visiblePixels(NSBitmapImageRep *rep, BOOL greenOnly) {
     NSUInteger count = 0;
     for (NSInteger y = 0; y < rep.pixelsHigh; y++) {
@@ -110,7 +124,8 @@ int main(int argc, const char *argv[]) {
         StilltermSettings *settings = [view valueForKey:@"settings"];
         StOptions options = settings.options;
         options.theme = 1; options.speed = 1.6; options.density = 0.35; options.intensity = 1;
-        settings.options = options; settings.characters = @"";
+        options.word_frequency = 2;
+        settings.options = options; settings.characters = @""; settings.words = @"anything";
         pump(0.4);
         [view animateOneFrame];
         NSBitmapImageRep *rep = snapshot(view);
@@ -121,6 +136,18 @@ int main(int argc, const char *argv[]) {
         require(greenPixels > 100, @"Matrix must draw green glyphs through Core Text");
         if (argc >= 4) require([[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
             writeToFile:[NSString stringWithUTF8String:argv[3]] atomically:YES], @"Write snapshot");
+        CFTimeInterval wordDeadline = NSProcessInfo.processInfo.systemUptime + 10.0;
+        while (!containsPhrase(view, "anything") && NSProcessInfo.processInfo.systemUptime < wordDeadline) {
+            pump(0.02); [view animateOneFrame];
+        }
+        require(containsPhrase(view, "anything"), @"Configured phrase must reach the native frame");
+        if (argc >= 4) {
+            pump(0.15); [view animateOneFrame];
+            NSString *wordPath = [[NSString stringWithUTF8String:argv[3]] stringByDeletingLastPathComponent];
+            require([[snapshot(view) representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
+                writeToFile:[wordPath stringByAppendingPathComponent:@"words-preview.png"] atomically:YES], @"Write phrase snapshot");
+        }
+        puts("PASS configured phrase renders through the native screensaver view");
         window.simulateRemoteVisibility = YES;
         [view animateOneFrame];
         require([view valueForKey:@"cells"] != nil, @"Remote host visibility must not suppress rendering");

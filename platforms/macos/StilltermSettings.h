@@ -6,6 +6,7 @@
 @property(nonatomic) NSInteger fps;
 @property(nonatomic) CGFloat fontSize;
 @property(nonatomic, copy) NSString *characters; // Empty uses the theme preset.
+@property(nonatomic, copy) NSString *words; // One phrase per line; empty disables.
 - (instancetype)initWithDefaults:(NSUserDefaults *)defaults;
 - (BOOL)isValid;
 - (void)save;

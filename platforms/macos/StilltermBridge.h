@@ -13,6 +13,7 @@ typedef struct {
     uint32_t theme; // 0 monochrome, 1 Matrix
     uint64_t seed;
     double speed, density, intensity;
+    uint32_t word_frequency; // 0 rare, 1 occasional, 2 frequent
 } StOptions;
 typedef struct {
     uint32_t scalar; // Unicode scalar, not UTF-16
@@ -23,6 +24,10 @@ int32_t st_defaults(uint32_t theme, StOptions *output);
 // UTF-8 bytes; length 0 selects theme characters. Returns NULL on failure.
 StEngine *st_create(uint32_t columns, uint32_t rows, StOptions options,
                     const uint8_t *characters, size_t length);
+// Both UTF-8 buffers are copied. Characters: at most 1024 bytes; words: 8192.
+// Words are optional newline-separated phrases. NULL is allowed only at length 0.
+StEngine *st_create_words(uint32_t columns, uint32_t rows, StOptions options,
+    const uint8_t *characters, size_t length, const uint8_t *words, size_t words_length);
 int32_t st_resize(StEngine *, uint32_t columns, uint32_t rows);
 int32_t st_advance(StEngine *, uint64_t elapsed_ns);
 // Capacity in cells, at least columns * rows. Zero-sized frames allow NULL.

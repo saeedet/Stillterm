@@ -10,7 +10,9 @@ static void writeTheme(ScreenSaverDefaults *defaults, uint32_t theme) {
     StilltermSettings *settings = [[StilltermSettings alloc] initWithDefaults:defaults];
     StOptions options;
     st_defaults(theme, &options);
+    options.word_frequency = theme == 1 ? 2 : 0;
     settings.options = options; settings.characters = @"";
+    settings.words = theme == 1 ? @"anything\nwake up" : @"hello";
     [settings save];
 }
 int main(int argc, const char *argv[]) {
@@ -36,6 +38,9 @@ int main(int argc, const char *argv[]) {
             StilltermSettings *loaded = [[StilltermSettings alloc] initWithDefaults:
                 [ScreenSaverDefaults defaultsForModuleWithName:domain]];
             require(loaded.options.theme == theme.unsignedIntValue, "reader sees theme saved by another process");
+            require([loaded.words isEqual:(theme.unsignedIntValue == 1 ? @"anything\nwake up" : @"hello")] &&
+                loaded.options.word_frequency == (theme.unsignedIntValue == 1 ? 2 : 0),
+                "reader sees phrases and frequency saved by another process");
             StOptions expected;
             st_defaults(theme.unsignedIntValue, &expected);
             require(loaded.options.speed == expected.speed && loaded.options.density == expected.density &&
