@@ -47,10 +47,9 @@ static BOOL containsPhrase(ScreenSaverView *view, const char *phrase) {
     NSUInteger count = data.length / sizeof(StCell), length = strlen(phrase);
     NSUInteger columns = [[view valueForKey:@"columns"] unsignedIntegerValue];
     if (!columns) return NO;
-    for (NSUInteger i = 0; i + length <= count; i++) {
-        if (i % columns + length > columns) continue;
+    for (NSUInteger i = 0; i + (length - 1) * columns < count; i++) {
         BOOL matches = YES;
-        for (NSUInteger j = 0; j < length; j++) matches &= cells[i + j].scalar == (uint8_t)phrase[j] && cells[i + j].visible;
+        for (NSUInteger j = 0; j < length; j++) matches &= cells[i + j * columns].scalar == (uint8_t)phrase[j] && cells[i + j * columns].visible;
         if (matches) return YES;
     }
     return NO;
@@ -140,14 +139,14 @@ int main(int argc, const char *argv[]) {
         while (!containsPhrase(view, "anything") && NSProcessInfo.processInfo.systemUptime < wordDeadline) {
             pump(0.02); [view animateOneFrame];
         }
-        require(containsPhrase(view, "anything"), @"Configured phrase must reach the native frame");
+        require(containsPhrase(view, "anything"), @"Configured phrase must fall vertically through the native frame");
         if (argc >= 4) {
             pump(0.15); [view animateOneFrame];
             NSString *wordPath = [[NSString stringWithUTF8String:argv[3]] stringByDeletingLastPathComponent];
             require([[snapshot(view) representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
                 writeToFile:[wordPath stringByAppendingPathComponent:@"words-preview.png"] atomically:YES], @"Write phrase snapshot");
         }
-        puts("PASS configured phrase renders through the native screensaver view");
+        puts("PASS configured phrase falls vertically through the native screensaver view");
         window.simulateRemoteVisibility = YES;
         [view animateOneFrame];
         require([view valueForKey:@"cells"] != nil, @"Remote host visibility must not suppress rendering");
