@@ -125,7 +125,7 @@ int main(int argc, const char *argv[]) {
         StOptions options = settings.options;
         options.theme = 1; options.speed = 1.6; options.density = 0.35; options.intensity = 1;
         options.word_frequency = 2;
-        settings.options = options; settings.characters = @""; settings.words = @"anything";
+        settings.options = options; settings.characters = @""; settings.words = @"FREE";
         pump(0.4);
         [view animateOneFrame];
         NSBitmapImageRep *rep = snapshot(view);
@@ -137,17 +137,17 @@ int main(int argc, const char *argv[]) {
         if (argc >= 4) require([[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
             writeToFile:[NSString stringWithUTF8String:argv[3]] atomically:YES], @"Write snapshot");
         CFTimeInterval wordDeadline = NSProcessInfo.processInfo.systemUptime + 10.0;
-        while (!containsGlowingPhrase(view, "anything") && NSProcessInfo.processInfo.systemUptime < wordDeadline) {
+        while (!containsGlowingPhrase(view, "FREE") && NSProcessInfo.processInfo.systemUptime < wordDeadline) {
             pump(0.02); [view animateOneFrame];
         }
-        require(containsGlowingPhrase(view, "anything"), @"Every letter of the vertical phrase must use the bright head color");
+        require(containsGlowingPhrase(view, "FREE"), @"FREE must build up into a complete glowing word");
         if (argc >= 4) {
             pump(0.15); [view animateOneFrame];
             NSString *wordPath = [[NSString stringWithUTF8String:argv[3]] stringByDeletingLastPathComponent];
             require([[snapshot(view) representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
                 writeToFile:[wordPath stringByAppendingPathComponent:@"words-preview.png"] atomically:YES], @"Write phrase snapshot");
         }
-        puts("PASS every letter of the vertical phrase uses the bright head color");
+        puts("PASS FREE builds up into a complete glowing word");
         window.simulateRemoteVisibility = YES;
         [view animateOneFrame];
         require([view valueForKey:@"cells"] != nil, @"Remote host visibility must not suppress rendering");
