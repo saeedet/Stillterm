@@ -8,7 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-rand_chacha = { version = "0.9", default-features = false }
+rand_chacha = { version = "0.10", default-features = false }
 unicode-width = "0.2"
 
 [lints]
