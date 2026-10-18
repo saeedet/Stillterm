@@ -78,12 +78,13 @@ host process take effect when that screensaver instance restarts.
 
 ## Experimental 3D corridor
 
-Build 12 adds **Matrix 3D (experimental)** to Options. It renders a procedural
-corridor using Rust/wgpu and a WGSL shader, presented through a native CAMetalLayer.
-Four independently seeded rain sheets cover the walls, floor, and ceiling. Slow
-camera movement creates perspective and parallax; distance fog and a small glow
-kernel soften the code. Custom glyphs are rasterized into an atlas using Core Text;
-words reveal on the two walls with the shared engine's progressive timing.
+Build 13 includes **Matrix 3D (experimental)** in Options. It renders a procedural
+room using Rust/wgpu and a WGSL shader, presented through a native CAMetalLayer.
+Five independently seeded rain sheets cover the side walls, floor, ceiling, and
+back wall. The viewpoint and room stay fixed while the code animates. Perspective,
+distance fog, and a small glow kernel provide depth. Custom glyphs are rasterized
+into an atlas using Core Text; words reveal on the side and back walls with the
+shared engine's progressive timing.
 
 Choose the mode and Save to keep it. A temporary demo preserves saved preferences:
 
@@ -93,9 +94,9 @@ Choose the mode and Save to keep it. A temporary demo preserves saved preference
   target/macos/Stillterm.saver --corridor
 ```
 
-The demo uses seed 42 and `FREE` for repeatable comparison. Speed controls rain and
-camera movement; character size changes surface spacing. Brightness and density
-retain their usual controls. Rendering resolution is capped near 2.1 million GPU
+The demo uses seed 42 and `FREE` for repeatable comparison. Speed controls the rain;
+character size changes surface spacing. Brightness and density retain their usual
+controls. Rendering resolution is capped near 2.1 million GPU
 pixels and scaled to the view; the default is 30 FPS. The windowed prototype has
 been checked locally on Apple M3. Installed full-screen/idle activation, additional
 GPU hardware, long sessions, and energy use still need testing. Windows and the

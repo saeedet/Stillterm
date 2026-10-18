@@ -122,10 +122,10 @@ Dense rendering costs more than the sparse presets; see [local measurements](doc
 
 ## Experimental 3D corridor (macOS)
 
-Mac build 12 adds **Matrix 3D (experimental)** in the native **Options → Theme**
-menu. Code covers a perspective corridor's walls, floor, and ceiling as a camera
-moves through it, with distance fading and glow. Custom characters and words are
-supported; words appear on the walls.
+Mac build 13 includes **Matrix 3D (experimental)** in the native **Options → Theme**
+menu. A stationary viewpoint looks into a room with side walls, a floor, a ceiling,
+and a back wall. Code animates across these fixed surfaces, with distance fading
+and glow. Custom characters and words are supported; words appear on the walls.
 
 The prototype uses Rust, wgpu, WGSL shaders, and a small native Metal view. A Metal
 GPU is required; an unavailable renderer falls back to Dense Matrix. Windowed

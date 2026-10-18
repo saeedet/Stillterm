@@ -109,6 +109,17 @@ full-screen playback, longer sessions, Intel/other GPUs, and energy still need
 measurement. Run the [native corridor check](macos.md#experimental-3d-corridor)
 to reproduce the image and measurement.
 
+### Stationary room (build 13)
+
+Build 13 fixes the viewpoint and adds a back wall. Five 192×64 sheets upload
+240 KiB per frame. On the same Apple M3, a five-second windowed sample at
+1870×1108 GPU pixels measured 14.2% of one CPU core, 30.2 presentation calls/second,
+166.4 MiB physical footprint, and 112.9 MiB peak RSS. After six warm start/stop
+cycles, footprint settled at 139.8 MiB, 0.7 MiB above its warm baseline. The same
+measurement limits above apply; these short samples are not a controlled
+performance comparison. The native check also verifies visible code at the back
+wall, ongoing animation, resize, sleep/wake, cleanup, and fallback.
+
 ## Reproduce
 
 ```sh

@@ -8,8 +8,9 @@ has been published.
 
 ### Added
 
-- Experimental Mac **Matrix 3D** mode with a GPU corridor, moving camera, animated
-  code on four surfaces, distance fading, glow, custom glyphs, and words on walls.
+- Experimental Mac **Matrix 3D** mode with a stationary GPU room, animated
+  code on five surfaces, distance fading, glow, custom glyphs, and words on walls.
+  The room has a floor, ceiling, side walls, and a finite back wall.
   Rust/wgpu renders through Metal using an original WGSL shader. The existing
   terminal and Windows modes retain their current renderers.
 - Headless shader/scene checks and native GPU animation, snapshot, fallback,
@@ -27,7 +28,7 @@ has been published.
 
 - Optional words and phrases appear vertically within rain streams, with Rare,
   Occasional, and Frequent settings. Configure them in native Mac/Windows settings
-  or terminal TOML/flags; existing preferences keep words disabled. Mac build 12 is
+  or terminal TOML/flags; existing preferences keep words disabled. Mac build 13 is
   available for local evaluation; manual Windows feature testing is pending.
 
 - Deterministic rain animation with Monochrome and Matrix themes, configurable
