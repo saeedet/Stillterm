@@ -122,10 +122,11 @@ static NSUInteger visiblePixels(NSBitmapImageRep *rep, BOOL greenOnly) {
 
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
-        if (argc < 2) { fprintf(stderr, "Usage: preview-host bundle [--check|--dense|--measure-dense [snapshot.png]]\n"); return 2; }
+        if (argc < 2) { fprintf(stderr, "Usage: preview-host bundle [--check|--dense|--sequence|--measure-dense [snapshot.png]]\n"); return 2; }
         BOOL check = argc >= 3 && strcmp(argv[2], "--check") == 0;
         BOOL measureDense = argc >= 3 && strcmp(argv[2], "--measure-dense") == 0;
-        BOOL dense = measureDense || (argc >= 3 && strcmp(argv[2], "--dense") == 0);
+        BOOL sequence = argc >= 3 && strcmp(argv[2], "--sequence") == 0;
+        BOOL dense = sequence || measureDense || (argc >= 3 && strcmp(argv[2], "--dense") == 0);
         [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         NSBundle *bundle = [NSBundle bundleWithPath:[NSString stringWithUTF8String:argv[1]]];
@@ -140,7 +141,7 @@ int main(int argc, const char *argv[]) {
         STRemoteVisibilityWindow *window = [[STRemoteVisibilityWindow alloc] initWithContentRect:NSMakeRect(40, 40, surface.width, surface.height + 40)
             styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable
             backing:NSBackingStoreBuffered defer:NO];
-        window.title = @"Stillterm Preview"; window.releasedWhenClosed = NO; window.delegate = delegate;
+        window.title = sequence ? @"Stillterm — FREE → YOUR → MIND" : @"Stillterm Preview"; window.releasedWhenClosed = NO; window.delegate = delegate;
         ScreenSaverView *view = [[viewClass alloc] initWithFrame:NSMakeRect(0, 0, surface.width, surface.height) isPreview:YES];
         view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
         [window.contentView addSubview:view];
@@ -156,6 +157,7 @@ int main(int argc, const char *argv[]) {
             StilltermSettings *settings = [view valueForKey:@"settings"];
             StOptions options = settings.options;
             options.theme = 2; options.speed = 1.2; options.density = 0.95; options.intensity = 1;
+            if (sequence) { options.seed = 42; options.word_frequency = 2; settings.words = @"FREE,YOUR\nMIND"; }
             if (measureDense) { options.seed = 42; options.word_frequency = 2; settings.words = @"FREE"; }
             settings.options = options; settings.characters = @""; settings.fontSize = 10; settings.fps = 30;
             view.animationTimeInterval = 1.0 / 30;

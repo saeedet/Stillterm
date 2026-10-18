@@ -71,8 +71,9 @@ impl EffectConfig {
         self.dense_trails = theme == crate::Theme::DenseMatrix;
         self
     }
-    /// Add up to 16 optional phrases, one per line, each at most 64 printable
-    /// single-column characters. Empty lines are ignored; empty text disables it.
+    /// Add up to 16 ordered phrases separated by commas or line breaks, each at
+    /// most 64 printable single-column characters. Empty entries are ignored;
+    /// empty text disables it.
     pub fn with_words(mut self, text: &str, frequency: WordFrequency) -> Result<Self, ConfigError> {
         self.words = WordConfig::new(text, frequency)?;
         Ok(self)

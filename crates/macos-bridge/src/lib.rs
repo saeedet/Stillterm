@@ -467,7 +467,7 @@ mod tests {
         // SAFETY: buffers are readable for creation; handles and frame storage
         // remain live and exclusively owned, and the handle is destroyed once.
         unsafe {
-            let text = "anything\nwake up";
+            let text = "anything,wake up\nFREE";
             let handle =
                 st_create_words(40, 20, options(), ptr::null(), 0, text.as_ptr(), text.len());
             assert!(!handle.is_null());

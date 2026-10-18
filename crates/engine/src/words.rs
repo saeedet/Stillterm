@@ -61,14 +61,14 @@ impl WordConfig {
             ));
         }
         let mut phrases = Vec::new();
-        for line in text.lines() {
+        for line in text.lines().flat_map(|line| line.split(',')) {
             let line = line.trim_matches(' ');
             if line.is_empty() {
                 continue;
             }
             if phrases.len() == 16 {
                 return Err(ConfigError(
-                    "use at most 16 words or phrases, one per line".into(),
+                    "use at most 16 words or phrases, separated by commas or line breaks".into(),
                 ));
             }
             let glyphs: Vec<_> = line.chars().map(Glyph::new).collect::<Result<_, _>>()?;
@@ -99,6 +99,7 @@ pub(crate) struct Words {
     rng: ChaCha8Rng,
     wait: u32,
     active: Option<Appearance>,
+    next_phrase: usize,
 }
 
 impl Words {
@@ -108,6 +109,7 @@ impl Words {
             rng,
             wait,
             active: None,
+            next_phrase: 0,
         }
     }
 
@@ -148,6 +150,10 @@ impl Words {
                 true
             };
             if finished {
+                // Retry interrupted reveals; advance only after a complete fade.
+                if active.fade_age.is_some() {
+                    self.next_phrase = (active.phrase + 1) % config.phrases.len();
+                }
                 self.active = None;
                 self.wait = config.frequency.delay(&mut self.rng);
             }
@@ -157,17 +163,13 @@ impl Words {
             self.wait -= 1;
             return;
         }
-        let fitting: Vec<_> = config
-            .phrases
-            .iter()
-            .enumerate()
-            .filter(|(_, phrase)| phrase.len() <= usize::from(size.rows()))
-            .map(|(index, _)| index)
-            .collect();
-        if fitting.is_empty() {
+        // Preserve input order, skipping only entries that cannot fit this view.
+        let Some(phrase) = (0..config.phrases.len())
+            .map(|offset| (self.next_phrase + offset) % config.phrases.len())
+            .find(|index| config.phrases[*index].len() <= usize::from(size.rows()))
+        else {
             return;
-        }
-        let phrase = fitting[self.rng.next_u32() as usize % fitting.len()];
+        };
         let length = config.phrases[phrase].len() as u32;
         let last_start = u32::from(size.rows()) - length;
         let candidates: Vec<_> = streams.filter(|(_, _, head)| *head <= last_start).collect();
@@ -221,6 +223,30 @@ impl Words {
 mod tests {
     use super::*;
     use rand_chacha::rand_core::SeedableRng;
+
+    #[test]
+    fn interrupted_or_resized_reveals_retry_the_same_entry() {
+        let config = WordConfig::new("FIRST,SECOND", WordFrequency::Frequent).unwrap();
+        let size = GridSize::new(1, 12).unwrap();
+        let mut words = Words::new(ChaCha8Rng::seed_from_u64(42));
+        words.wait = 0;
+        words.step(&config, size, std::iter::once((0, 123, 0)));
+        words.step(&config, size, std::iter::once((0, 123, 3)));
+        words.resize();
+        words.step(&config, size, std::iter::once((0, 456, 0)));
+        assert_eq!(words.active.as_ref().unwrap().phrase, 0);
+        words.step(&config, size, std::iter::empty());
+        words.wait = 0;
+        words.step(&config, size, std::iter::once((0, 789, 0)));
+        assert_eq!(words.active.as_ref().unwrap().phrase, 0);
+        words.step(&config, size, std::iter::once((0, 789, 10)));
+        while words.active.is_some() {
+            words.step(&config, size, std::iter::empty());
+        }
+        words.wait = 0;
+        words.step(&config, size, std::iter::once((0, 999, 0)));
+        assert_eq!(words.active.as_ref().unwrap().phrase, 1);
+    }
 
     #[test]
     fn free_is_revealed_in_place_holds_then_fades_from_f_to_last_e() {

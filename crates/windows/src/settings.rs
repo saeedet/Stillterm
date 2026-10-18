@@ -2,6 +2,22 @@
 use serde::Deserialize;
 use stillterm_engine::{EffectConfig, Theme};
 
+// Keep text settings compatible while allowing an ordered TOML array.
+fn deserialize_words<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<String, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Input {
+        Text(String),
+        List(Vec<String>),
+    }
+    Ok(match Input::deserialize(deserializer)? {
+        Input::Text(text) => text,
+        Input::List(phrases) => phrases.join("\n"),
+    })
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Settings {
@@ -13,6 +29,7 @@ pub struct Settings {
     pub density: Option<f64>,
     pub intensity: Option<f64>,
     pub characters: String,
+    #[serde(deserialize_with = "deserialize_words")]
     pub words: String,
     pub word_frequency: String,
 }
@@ -124,6 +141,16 @@ mod tests {
             settings.characters
         );
     }
+    #[test]
+    fn ordered_word_arrays_load_and_roundtrip_as_editable_text() {
+        let settings = Settings::parse("words = ['FIRST', 'SECOND', 'THIRD']").unwrap();
+        assert_eq!(settings.words, "FIRST\nSECOND\nTHIRD");
+        let roundtrip = Settings::parse(&settings.to_toml().unwrap()).unwrap();
+        assert_eq!(roundtrip.words, settings.words);
+        assert!(Settings::parse("words = ['valid', 3]").is_err());
+        assert!(Settings::parse("words = []").unwrap().words.is_empty());
+    }
+
     #[test]
     fn invalid_settings_fail_before_a_window_opens() {
         for input in [

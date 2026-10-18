@@ -33,7 +33,7 @@ const LABELS: [&str; 8] = [
     "Character size (10–48)",
     "Seed",
     "Characters (blank = preset)",
-    "Words (one per line)",
+    "Words (, or new line)",
 ];
 
 fn save(settings: &Settings) -> Result<(), String> {
@@ -425,7 +425,7 @@ pub fn run(owner: HWND, settings: Result<Settings, String>) -> Result<(), String
             }
             control(
                 "STATIC",
-                "Word frequency (blank words = off)",
+                "Word frequency (in order)",
                 0,
                 0,
                 20,

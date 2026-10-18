@@ -5,6 +5,22 @@ use stillterm_engine::{EffectConfig, Theme};
 
 use crate::args::Args;
 
+// Keep text settings compatible while allowing an ordered TOML array.
+fn deserialize_words<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<String, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Input {
+        Text(String),
+        List(Vec<String>),
+    }
+    Ok(match Input::deserialize(deserializer)? {
+        Input::Text(text) => text,
+        Input::List(phrases) => phrases.join("\n"),
+    })
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 struct FileConfig {
@@ -15,6 +31,7 @@ struct FileConfig {
     density: Option<f64>,
     intensity: Option<f64>,
     characters: Option<String>,
+    #[serde(deserialize_with = "deserialize_words")]
     words: String,
     word_frequency: String,
     seed: u64,
@@ -218,6 +235,29 @@ mod tests {
             expected.step();
             assert_eq!(actual.frame(), expected.frame());
         }
+    }
+
+    #[test]
+    fn word_arrays_match_text_and_cli_still_overrides_them() {
+        use stillterm_engine::{Engine, GridSize};
+        let array = "words = ['FIRST', 'SECOND', 'THIRD']";
+        let text = "words = 'FIRST,SECOND,THIRD'";
+        let size = GridSize::new(48, 24).unwrap();
+        for args in [vec!["stillterm"], vec!["stillterm", "--words", "override"]] {
+            let args = Args::parse_from(args);
+            let a = Settings::merge(toml::from_str(array).unwrap(), &args).unwrap();
+            let b = Settings::merge(toml::from_str(text).unwrap(), &args).unwrap();
+            let mut a = Engine::rain(size, a.effect, 42);
+            let mut b = Engine::rain(size, b.effect, 42);
+            for _ in 0..1800 {
+                a.step();
+                b.step();
+                assert_eq!(a.frame(), b.frame());
+            }
+        }
+        assert!(toml::from_str::<FileConfig>("words = ['valid', 3]").is_err());
+        let empty = toml::from_str::<FileConfig>("words = []").unwrap();
+        assert!(empty.words.is_empty());
     }
 
     #[test]

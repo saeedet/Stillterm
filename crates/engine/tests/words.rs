@@ -142,6 +142,7 @@ fn phrases_validate_bounds_and_single_column_text() {
         "hello\x1b",
         &"a".repeat(65),
         &"a\n".repeat(17),
+        &"a,".repeat(17),
         &"a".repeat(8193),
     ] {
         assert!(
@@ -225,4 +226,94 @@ fn zero_density_has_no_word_streams() {
                 .all(|cell| cell.intensity == 0)
         );
     }
+}
+
+#[test]
+fn comma_and_line_break_lists_cycle_in_order_at_varied_positions() {
+    for theme in [Theme::Monochrome, Theme::Matrix, Theme::DenseMatrix] {
+        let size = GridSize::new(48, 24).unwrap();
+        let config = theme.rain_config();
+        let mut mixed = Engine::rain(
+            size,
+            config
+                .clone()
+                .with_words(" FIRST, ,SECOND\r\nTHIRD, ", WordFrequency::Frequent)
+                .unwrap(),
+            42,
+        );
+        let mut lines = Engine::rain(
+            size,
+            config
+                .with_words("FIRST\nSECOND\nTHIRD", WordFrequency::Frequent)
+                .unwrap(),
+            42,
+        );
+        let phrases = ["FIRST", "SECOND", "THIRD"];
+        let mut appearances = Vec::new();
+        let mut previous = None;
+        for _ in 0..6000 {
+            mixed.step();
+            lines.step();
+            assert_eq!(
+                mixed.frame(),
+                lines.frame(),
+                "separator changed the animation"
+            );
+            let current = phrases.iter().enumerate().find_map(|(index, phrase)| {
+                phrase_position(&mut mixed, phrase).map(|position| (index, position))
+            });
+            if let Some((index, position)) = current {
+                if previous.is_none() {
+                    assert_eq!(
+                        index,
+                        appearances.len() % phrases.len(),
+                        "phrase out of order"
+                    );
+                    appearances.push(position);
+                }
+            }
+            previous = current;
+            if appearances.len() == 6 {
+                break;
+            }
+        }
+        assert_eq!(appearances.len(), 6, "sequence did not loop in {theme:?}");
+        assert!(
+            appearances.windows(2).any(|pair| pair[0] != pair[1]),
+            "appearances never changed position"
+        );
+    }
+}
+
+#[test]
+fn ordered_lists_skip_phrases_taller_than_the_view() {
+    let mut engine = Engine::rain(
+        GridSize::new(48, 12).unwrap(),
+        Theme::Matrix
+            .rain_config()
+            .with_words(
+                "FIRST,THIS PHRASE CANNOT FIT,THIRD",
+                WordFrequency::Frequent,
+            )
+            .unwrap(),
+        42,
+    );
+    let mut seen = Vec::new();
+    let mut previous = false;
+    for _ in 0..4000 {
+        engine.step();
+        let current = ["FIRST", "THIRD"]
+            .into_iter()
+            .find(|phrase| has_phrase(&mut engine, phrase));
+        if let Some(phrase) = current {
+            if !previous {
+                seen.push(phrase);
+            }
+        }
+        previous = current.is_some();
+        if seen.len() == 4 {
+            break;
+        }
+    }
+    assert_eq!(seen, ["FIRST", "THIRD", "FIRST", "THIRD"]);
 }

@@ -31,7 +31,7 @@ int32_t st_depth_defaults(StOptions base, uint32_t layer, StDepthLayer *output);
 StEngine *st_create(uint32_t columns, uint32_t rows, StOptions options,
                     const uint8_t *characters, size_t length);
 // Both UTF-8 buffers are copied. Characters: at most 1024 bytes; words: 8192.
-// Words are optional newline-separated phrases. NULL is allowed only at length 0.
+// Words are ordered phrases separated by commas or line breaks. NULL is allowed only at length 0.
 StEngine *st_create_words(uint32_t columns, uint32_t rows, StOptions options,
     const uint8_t *characters, size_t length, const uint8_t *words, size_t words_length);
 int32_t st_resize(StEngine *, uint32_t columns, uint32_t rows);

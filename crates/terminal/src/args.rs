@@ -38,7 +38,7 @@ pub struct Args {
     /// Printable single-column characters; overrides the theme preset
     #[arg(long, global = true)]
     pub characters: Option<String>,
-    /// Optional words or phrases, one per line; empty text disables them
+    /// Ordered words or phrases, separated by commas or line breaks; blank disables
     #[arg(long, global = true)]
     pub words: Option<String>,
     /// How often words appear [default: occasional]

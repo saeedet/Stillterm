@@ -12,13 +12,13 @@ int main(void) {
         require(settings.options.theme == 0 && settings.fps == 30, "native defaults");
         StOptions options; st_defaults(1, &options); options.seed = UINT64_MAX;
         options.word_frequency = 2;
-        settings.words = @"anything\nwake up";
+        settings.words = @"anything,wake up\nFREE";
         settings.options = options; settings.characters = @"ｱ01"; settings.fps = 60; settings.fontSize = 24;
         [settings save];
         StilltermSettings *loaded = [[StilltermSettings alloc] initWithDefaults:defaults];
         require(loaded.options.theme == 1 && loaded.options.seed == UINT64_MAX && loaded.fps == 60 &&
             loaded.fontSize == 24 && [loaded.characters isEqual:@"ｱ01"], "settings round trip, including u64 seed");
-        require([loaded.words isEqual:@"anything\nwake up"] && loaded.options.word_frequency == 2, "phrases and frequency round trip");
+        require([loaded.words isEqual:@"anything,wake up\nFREE"] && loaded.options.word_frequency == 2, "phrases and frequency round trip");
         NSMutableDictionary *retired = [[defaults dictionaryForKey:@"SettingsV1"] mutableCopy];
         retired[@"theme"] = @3; [defaults setObject:retired forKey:@"SettingsV1"];
         StilltermSettings *migrated = [[StilltermSettings alloc] initWithDefaults:defaults];
@@ -49,6 +49,7 @@ int main(void) {
             if ([view isKindOfClass:NSButton.class] && [[(NSButton *)view title] isEqual:@"Save"]) save = (NSButton *)view;
         }
         require(fields.count == 7 && theme && save, "options controls");
+        require(theme.numberOfItems == 3, "only supported rain themes are offered");
         [theme selectItemAtIndex:1]; [NSApp sendAction:theme.action to:theme.target from:theme];
         require([[(NSTextField *)fields[@"Speed"] stringValue] isEqual:@"1.6"], "theme presets populate fields");
         [(NSTextField *)fields[@"Speed"] setStringValue:@"1.6oops"]; [save performClick:nil];
@@ -62,22 +63,22 @@ int main(void) {
         require(words && frequency, "phrase controls exist");
         words.string = @"界"; [save performClick:nil];
         require(!applied && loaded.words.length == 0, "invalid phrases do not change saved settings");
-        words.string = @"anything\nwake up"; [frequency selectItemAtIndex:2];
+        words.string = @"anything,wake up\nFREE"; [frequency selectItemAtIndex:2];
         [theme selectItemAtIndex:0]; [NSApp sendAction:theme.action to:theme.target from:theme];
-        require([words.string isEqual:@"anything\nwake up"] && frequency.indexOfSelectedItem == 2,
+        require([words.string isEqual:@"anything,wake up\nFREE"] && frequency.indexOfSelectedItem == 2,
             "theme changes preserve personal phrases and frequency");
         [theme selectItemAtIndex:1]; [NSApp sendAction:theme.action to:theme.target from:theme];
         [save performClick:nil];
         require(applied && loaded.options.theme == 1 && loaded.options.seed == UINT64_MAX, "valid options apply");
         loaded = [[StilltermSettings alloc] initWithDefaults:defaults];
-        require([loaded.words isEqual:@"anything\nwake up"] && loaded.options.word_frequency == 2,
+        require([loaded.words isEqual:@"anything,wake up\nFREE"] && loaded.options.word_frequency == 2,
             "options save persists multiline phrases");
         [theme selectItemAtIndex:2]; [NSApp sendAction:theme.action to:theme.target from:theme];
         require([[(NSTextField *)fields[@"Character size"] stringValue] isEqual:@"10"] &&
             [[(NSTextField *)fields[@"Density"] stringValue] isEqual:@"0.95"], "dense preset uses small characters and high density");
         [save performClick:nil];
         loaded = [[StilltermSettings alloc] initWithDefaults:defaults];
-        require(loaded.options.theme == 2 && loaded.fontSize == 10 && [loaded.words isEqual:@"anything\nwake up"] &&
+        require(loaded.options.theme == 2 && loaded.fontSize == 10 && [loaded.words isEqual:@"anything,wake up\nFREE"] &&
             loaded.options.word_frequency == 2, "dense theme round trip preserves words");
         [theme selectItemAtIndex:1]; [NSApp sendAction:theme.action to:theme.target from:theme];
         require([[(NSTextField *)fields[@"Character size"] stringValue] isEqual:@"18"], "leaving dense restores regular character size");
@@ -88,7 +89,7 @@ int main(void) {
             if ([control isKindOfClass:NSButton.class] && [[(NSButton *)control title] isEqual:@"Cancel"]) [(NSButton *)control performClick:nil];
         }
         StilltermSettings *afterCancel = [[StilltermSettings alloc] initWithDefaults:defaults];
-        require(!canceled && [afterCancel.words isEqual:@"anything\nwake up"], "cancel preserves saved words");
+        require(!canceled && [afterCancel.words isEqual:@"anything,wake up\nFREE"], "cancel preserves saved words");
         [controller.window.contentView layoutSubtreeIfNeeded];
         NSView *content = controller.window.contentView;
         NSBitmapImageRep *rep = [content bitmapImageRepForCachingDisplayInRect:content.bounds];
@@ -97,6 +98,7 @@ int main(void) {
             writeToFile:@"target/macos/words-options.png" atomically:YES], "write options snapshot");
         [defaults removePersistentDomainForName:domain];
         puts("PASS native settings, validation, persistence, and options controls");
+        require(theme.numberOfItems == 3, "only supported rain themes are offered");
     }
     return 0;
 }

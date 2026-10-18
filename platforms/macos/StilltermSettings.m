@@ -122,7 +122,7 @@
         [_wordFrequency addItemsWithTitles:@[@"Rare", @"Occasional", @"Frequent"]];
         [_wordFrequency selectItemAtIndex:settings.options.word_frequency];
         _wordFrequency.accessibilityLabel = @"Word frequency"; [content addSubview:_wordFrequency];
-        NSTextField *hint = [NSTextField wrappingLabelWithString:@"Words: one per line; blank disables. Up to 16 phrases, 64 single-width characters each.\nSpeed 0.1–4 · Density/brightness 0–1 · 10–60 FPS · Size 10–48"];
+        NSTextField *hint = [NSTextField wrappingLabelWithString:@"Words: commas or new lines; shown in order, then repeat. Blank disables. Up to 16 phrases, 64 characters each.\nSpeed 0.1–4 · Density/brightness 0–1 · 10–60 FPS · Size 10–48"];
         hint.frame = NSMakeRect(24, 111, 390, 58); hint.textColor = NSColor.secondaryLabelColor;
         hint.font = [NSFont systemFontOfSize:11]; [content addSubview:hint];
         _error = [NSTextField wrappingLabelWithString:@""];
@@ -183,7 +183,7 @@
     _settings.words = _words.string;
     if (![_settings isValid]) {
         _settings.options = old; _settings.fps = oldFPS; _settings.fontSize = oldSize; _settings.characters = oldCharacters; _settings.words = oldWords;
-        _error.stringValue = @"Check the ranges and use printable, single-width text. Characters: up to 256. Words: 16 lines, up to 64 characters per phrase."; return;
+        _error.stringValue = @"Check the ranges and use printable, single-width text. Characters: up to 256. Words: up to 16 comma/newline-separated phrases, 64 characters each."; return;
     }
     [_settings save]; if (_didApply) _didApply(); [self finish];
 }
