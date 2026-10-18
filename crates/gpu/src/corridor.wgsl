@@ -1,5 +1,5 @@
-// A camera ray intersects four corridor planes. All code is attached to world
-// surfaces, so camera translation produces perspective and parallax naturally.
+// A fixed viewpoint looks into a five-sided room. Only the rain sheets animate;
+// surface intersections and perspective remain stationary.
 struct Params { screen: vec4<f32>, atlas: vec4<f32>, view: vec4<f32> }
 @group(0) @binding(0) var<uniform> params: Params;
 @group(0) @binding(1) var sheets: texture_2d_array<u32>;
@@ -13,31 +13,30 @@ struct Params { screen: vec4<f32>, atlas: vec4<f32>, view: vec4<f32> }
 fn mask(uv: vec2<f32>) -> f32 { return textureSampleLevel(atlas, atlas_sampler, uv, 0.0).a; }
 
 @fragment fn fragment_main(@builtin(position) pixel: vec4<f32>) -> @location(0) vec4<f32> {
-    let time = params.screen.z;
     let p = (pixel.xy / params.screen.xy) * 2.0 - 1.0;
-    var ray = normalize(vec3<f32>(p.x * params.screen.x / params.screen.y * 0.82, -p.y * 0.82, 1.0));
-    let yaw = 0.035 * sin(time * 0.13);
-    let pitch = 0.025 * sin(time * 0.09);
-    ray = vec3<f32>(ray.x * cos(yaw) + ray.z * sin(yaw), ray.y, ray.z * cos(yaw) - ray.x * sin(yaw));
-    ray = vec3<f32>(ray.x, ray.y * cos(pitch) - ray.z * sin(pitch), ray.z * cos(pitch) + ray.y * sin(pitch));
-    let camera = vec3<f32>(0.32 * sin(time * 0.11), 0.15 * sin(time * 0.14), time * 0.55);
+    let ray = normalize(vec3<f32>(p.x * params.screen.x / params.screen.y * 0.82, -p.y * 0.82, 1.0));
     let side = select(-4.0, 4.0, ray.x >= 0.0);
     let horizontal = select(-2.8, 2.8, ray.y >= 0.0);
-    let tx = (side - camera.x) / (select(-1.0, 1.0, ray.x >= 0.0) * max(abs(ray.x), 0.00001));
-    let ty = (horizontal - camera.y) / (select(-1.0, 1.0, ray.y >= 0.0) * max(abs(ray.y), 0.00001));
-    let wall = tx < ty;
-    let distance = min(tx, ty);
-    let hit = camera + ray * distance;
+    let tx = 4.0 / max(abs(ray.x), 0.00001);
+    let ty = 2.8 / max(abs(ray.y), 0.00001);
+    let tz = 12.0 / ray.z;
+    let back = tz <= min(tx, ty);
+    let wall = back || tx < ty;
+    let distance = min(tz, min(tx, ty));
+    let hit = ray * distance;
     let scale = params.view.x;
     var surface = vec2<f32>(hit.z * 12.0 / scale, (2.8 - hit.y) * 7.5 / scale);
     var face = select(0, 1, side > 0.0);
-    if !wall {
+    if back {
+        surface = vec2<f32>((hit.x + 4.0) * 12.0 / scale, (2.8 - hit.y) * 7.5 / scale);
+        face = 4;
+    } else if !wall {
         surface = vec2<f32>((hit.x + 4.0) * 12.0 / scale, hit.z * 7.5 / scale);
         face = select(2, 3, horizontal > 0.0);
     }
     // Orient each inward-facing surface so letters stay readable.
-    if wall && side > 0.0 { surface.x = -surface.x; }
-    if !wall && horizontal < 0.0 { surface.y = -surface.y; }
+    if face == 1 { surface.x = -surface.x; }
+    if face == 2 { surface.y = -surface.y; }
     let cell = vec2<i32>(floor(surface));
     let sheet_cell = vec2<i32>(((cell.x % 192) + 192) % 192, ((cell.y % 64) + 64) % 64);
     let data = textureLoad(sheets, sheet_cell, face, 0);

@@ -134,6 +134,14 @@ static void checkCorridor(ScreenSaverView *view, const char *filename) {
     }
     NSBitmapImageRep *first = corridorSnapshot(view);
     require(first != nil && visiblePixels(first, YES) > 1000, @"GPU corridor draws green code");
+    NSUInteger backWallPixels = 0;
+    for (NSInteger y = first.pixelsHigh * 2 / 5; y < first.pixelsHigh * 3 / 5; y++) {
+        for (NSInteger x = first.pixelsWide * 2 / 5; x < first.pixelsWide * 3 / 5; x++) {
+            NSUInteger pixel[4]; [first getPixel:pixel atX:x y:y];
+            if (pixel[1] > 20 && pixel[1] > pixel[0] && pixel[1] > pixel[2]) backWallPixels++;
+        }
+    }
+    require(backWallPixels > 100, @"A visible code-covered back wall fills the center");
     NSData *before = [NSData dataWithBytes:first.bitmapData length:first.bytesPerRow * first.pixelsHigh];
     struct rusage begin, end; getrusage(RUSAGE_SELF, &begin);
     CFTimeInterval start = NSProcessInfo.processInfo.systemUptime;
@@ -148,7 +156,7 @@ static void checkCorridor(ScreenSaverView *view, const char *filename) {
         ([[view valueForKey:@"drawnFrames"] unsignedIntegerValue] - frames) / elapsed, footprintMiB(), end.ru_maxrss / 1048576.0);
     NSBitmapImageRep *next = corridorSnapshot(view);
     require(next && ![before isEqual:[NSData dataWithBytes:next.bitmapData length:next.bytesPerRow * next.pixelsHigh]],
-        @"Camera and corridor rain animate");
+        @"Rain animates in the stationary room");
     [view.window setValue:@YES forKey:@"simulateRemoteVisibility"];
     [view animateOneFrame];
     require(corridorSnapshot(view) != nil, @"Remote host visibility does not suppress GPU rendering");

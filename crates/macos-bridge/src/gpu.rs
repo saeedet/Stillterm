@@ -181,7 +181,7 @@ pub unsafe extern "C" fn st_corridor_create(
                 config,
                 &glyphs,
                 options.seed,
-                [(character_size / 18.0) as f32, options.speed as f32],
+                (character_size / 18.0) as f32,
             )
         } {
             Ok(renderer) => Some(Box::into_raw(Box::new(StGpu {

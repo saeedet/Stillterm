@@ -1,10 +1,10 @@
-//! Four animated rain sheets, sampled on corridor surfaces by the shader.
+//! Five animated rain sheets, sampled on corridor surfaces by the shader.
 use std::{collections::HashMap, time::Duration};
 use stillterm_engine::{EffectConfig, Engine, GridSize, StepClock, WordFrequency};
 
 pub const COLUMNS: u32 = 192;
 pub const ROWS: u32 = 64;
-pub const FACES: u32 = 4;
+pub const FACES: u32 = 5;
 pub const MAX_GLYPHS: usize = 1280;
 
 /// Stable atlas order, including word letters missing from the rain alphabet.
@@ -27,7 +27,6 @@ pub struct Scene {
     glyphs: HashMap<char, u16>,
     clock: StepClock,
     pixels: Vec<u8>,
-    pub time: f32,
 }
 impl Scene {
     pub fn new(config: EffectConfig, atlas: &[char], seed: u64) -> Self {
@@ -37,12 +36,13 @@ impl Scene {
             0x9e3779b97f4a7c15,
             0x6a09e667f3bcc909,
             0xbb67ae8584caa73b,
+            0x3c6ef372fe94f82b,
         ]
         .into_iter()
         .enumerate()
         .map(|(face, salt)| {
             let mut config = config.clone().with_vertical_fade(false);
-            if face >= 2 {
+            if face == 2 || face == 3 {
                 config = config
                     .with_words("", WordFrequency::Occasional)
                     .expect("empty words");
@@ -59,12 +59,10 @@ impl Scene {
                 .collect(),
             clock: StepClock::default(),
             pixels: vec![0; (COLUMNS * ROWS * FACES * 4) as usize],
-            time: 0.0,
         }
     }
-    pub fn advance(&mut self, elapsed: Duration, speed: f32) {
+    pub fn advance(&mut self, elapsed: Duration) {
         let elapsed = elapsed.min(Duration::from_millis(250));
-        self.time = (self.time + elapsed.as_secs_f32() * speed) % 65536.0;
         for _ in 0..self.clock.advance(elapsed) {
             for sheet in &mut self.sheets {
                 sheet.step();
@@ -77,7 +75,7 @@ impl Scene {
         for sheet in &mut self.sheets {
             for (pixel, cell) in destination
                 .next()
-                .expect("four sheets")
+                .expect("five sheets")
                 .chunks_exact_mut(4)
                 .zip(sheet.frame().cells())
             {
@@ -111,8 +109,8 @@ mod tests {
         let mut b = Scene::new(config, &atlas, 42);
         let initial = a.pixels().to_vec();
         for _ in 0..160 {
-            a.advance(Duration::from_millis(100), 1.0);
-            b.advance(Duration::from_millis(100), 1.0);
+            a.advance(Duration::from_millis(100));
+            b.advance(Duration::from_millis(100));
             assert_eq!(a.pixels(), b.pixels());
             for pixel in a.pixels().chunks_exact(4) {
                 assert!(usize::from(u16::from_le_bytes([pixel[0], pixel[1]])) < atlas.len());
@@ -121,6 +119,13 @@ mod tests {
         assert_ne!(initial, a.pixels());
         let pixels = a.pixels();
         let face = (COLUMNS * ROWS * 4) as usize;
-        assert_ne!(&pixels[..face], &pixels[face..face * 2]);
+        assert_eq!(pixels.len(), face * 5);
+        let sheets: Vec<_> = pixels.chunks_exact(face).collect();
+        for (i, sheet) in sheets.iter().enumerate() {
+            assert!(sheet.chunks_exact(4).any(|pixel| pixel[2] > 0));
+            for other in &sheets[..i] {
+                assert_ne!(sheet, other);
+            }
+        }
     }
 }

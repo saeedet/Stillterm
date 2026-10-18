@@ -26,7 +26,6 @@ pub struct Renderer {
     scene: Scene,
     atlas_size: [f32; 4],
     character_scale: f32,
-    speed: f32,
     surface_misses: u32,
 }
 impl Renderer {
@@ -40,7 +39,7 @@ impl Renderer {
         effect: EffectConfig,
         glyphs: &[char],
         seed: u64,
-        scale_speed: [f32; 2],
+        character_scale: f32,
     ) -> Result<Self, String> {
         if layer.is_null()
             || !valid_size(size)
@@ -217,8 +216,7 @@ impl Renderer {
                 atlas.tile_width as f32,
                 atlas.tile_height as f32,
             ],
-            character_scale: scale_speed[0],
-            speed: scale_speed[1],
+            character_scale,
             surface_misses: 0,
         })
     }
@@ -247,7 +245,7 @@ impl Renderer {
         let values = [
             self.config.width as f32,
             self.config.height as f32,
-            self.scene.time,
+            0.0,
             0.0,
             self.atlas_size[0],
             self.atlas_size[1],
@@ -284,7 +282,7 @@ impl Renderer {
         pass.draw(0..3, 0..1);
     }
     pub fn render(&mut self, elapsed: Duration) -> Result<(), String> {
-        self.scene.advance(elapsed, self.speed);
+        self.scene.advance(elapsed);
         self.upload();
         let frame = match self.surface.get_current_texture() {
             Ok(frame) => frame,
