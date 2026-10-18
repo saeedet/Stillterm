@@ -2,20 +2,20 @@
 
 Quiet character animation for terminals and native screensavers, powered by Rust.
 
-Sparse streams, fading trails, and a small reusable animation engine. Stillterm
-runs directly in your terminal, with deterministic seeds and a 30 FPS default.
-It has no background service or browser runtime.
+Choose Monochrome, Matrix, or Dense Matrix rain, and add your own words in a
+repeating sequence. Stillterm runs in your terminal or as a native macOS/Windows
+screensaver, with deterministic seeds and a 30 FPS default. It has no background
+service or browser runtime.
 
 ![A reproducible snapshot of Stillterm's rain effect](docs/media/rain.svg)
 
 *Engine snapshot: seed 42, four seconds, 96×28 cells. Font and brightness vary by
 terminal. An animation recording is planned for the first release.*
 
-**Status:** Terminal application plus macOS and Windows screensaver development
-builds, plus an experimental Hyprland adapter. macOS Developer ID signing is
-configured and the first package has been submitted for notarization. Public binary
-releases are pending; Windows builds remain unsigned. Stillterm does not lock
-your session.
+**Status:** In development; source installation is available now. The Mac build
+is Developer ID signed, with Apple notarization pending. Public binary releases
+are not available yet; Windows builds remain unsigned. The Hyprland adapter is
+experimental. Stillterm provides animation; your operating system controls locking.
 
 ## Install
 
@@ -44,21 +44,21 @@ scripts/build-macos.sh
 scripts/check-macos.sh --preview
 ```
 
-Open `target/macos/Stillterm.saver` to install. It includes three themes and a native
-options panel. Local installed-screensaver testing passed on Apple M3 with macOS
-14.6.1, including theme switching, multiple displays, sleep/wake, and cleanup after
-dismissal. Build 5 passes a retained-view memory regression check; after three
-installed previews, the idle helper measured 117 MiB and 0% CPU. Longer-session
-memory and installed full-screen performance validation are still pending. Signed,
-notarized downloads and broader compatibility testing are also pending. See [macOS setup and distribution](docs/macos.md).
+Open `target/macos/Stillterm.saver` to install. The native options panel includes
+all three themes, custom characters, ordered words/phrases, and animation controls.
+Build 15 passed local settings, rendering, lifecycle, and memory regression checks
+on Apple M3 / macOS 27.0.1. Earlier installed-screensaver checks passed on macOS
+14.6.1, including multiple displays and sleep/wake. Longer sessions and a clean-Mac
+installation of the final notarized download still need testing.
+See [macOS setup and distribution](docs/macos.md).
 
 ## Windows screensaver
 
 On Windows, run `./scripts/build-windows.ps1` from PowerShell to build
 `target/windows/Stillterm.scr`. It supports full screen, native settings, and the
-embedded Windows preview. The manual checklist passed on Windows 10 and Windows 11.
-Milestone 3 implementation and manual testing are complete. This remains an unsigned
-development build. See [setup and the test checklist](docs/windows.md).
+embedded Windows preview. The baseline manual checklist passed on Windows 10 and
+Windows 11. The latest word-sequence and dense-theme updates have automated checks;
+manual Windows testing of those additions is pending. Builds remain unsigned. See [setup and the test checklist](docs/windows.md).
 
 ## Linux / Hyprland
 
@@ -188,8 +188,8 @@ the monochrome theme otherwise uses a detected grayscale or basic-color palette.
 | macOS terminal | Tested locally on Apple Silicon, including PTY lifecycle checks |
 | Windows terminal | Cross-checked for compilation; native CI configured; interactive testing pending |
 | Linux terminal | Cross-checked for compilation; native CI and PTY checks configured |
-| macOS `.saver` | Installed screensaver tested on Apple M3 / macOS 14.6.1; Intel slice checked under Rosetta; signed downloads pending |
-| Windows `.scr` | Manual checklist passed on Windows 10 and Windows 11; unsigned x64 build |
+| macOS `.saver` | Build 15 checked locally on Apple M3; earlier installed checks on macOS 14.6.1; notarized download pending |
+| Windows `.scr` | Baseline tested on Windows 10/11; latest phrase/dense additions await manual testing; unsigned |
 | Hyprland / Hypridle | Experimental adapter; automated lifecycle tests; desktop acceptance pending |
 | Omarchy 4.0.4 | Manual preview path; automatic idle replacement unsupported |
 

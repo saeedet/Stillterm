@@ -201,8 +201,11 @@ paid account.
 On 2026-10-17, the universal 0.1.0 / build 5 bundle and disk image passed Developer
 ID signature verification. Native drawing, settings, lifecycle, and retained-view
 memory checks passed on arm64 with macOS 27.0.1 (26A434) and Xcode 27.0. The disk
-image has been submitted to Apple; notarization, stapling, and final downloaded
-installation checks are pending. Nothing has been published as a GitHub Release.
+image was submitted to Apple; it still reported **In Progress** on 2026-10-18.
+That build predates the current word and dense-theme updates. Build 15 is the
+current signed release candidate and requires its own notarization. Stapling and
+final downloaded installation checks are pending. Nothing has been published as
+a GitHub Release.
 
 Local builds are ad-hoc signed by default. They are suitable for development,
 not a substitute for Developer ID signing and notarization. Do not remove quarantine or disable
@@ -236,7 +239,9 @@ scripts/package-macos.sh
 ```
 
 The packaging script creates a signed disk image when that identity is set,
-otherwise an unsigned development disk image. For a public release, submit the
+otherwise an unsigned development disk image. To preserve an earlier submission,
+pass a separate destination, such as
+`scripts/package-macos.sh target/macos/releases/build-15/Stillterm.dmg`. For a public release, submit the
 image using a previously configured Keychain profile, then staple it:
 
 ```sh
