@@ -41,7 +41,7 @@ has been published.
   dismissal, scoped cleanup, and optional standalone Hypridle setup.
 - Automated platform checks and temporary CI development artifacts.
 - Verified Developer ID signing for the universal macOS bundle and disk image;
-  the first package has been submitted to Apple for notarization.
+  build 15 has been submitted separately to Apple for notarization.
 
 ### Fixed
 

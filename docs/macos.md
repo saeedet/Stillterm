@@ -203,8 +203,10 @@ ID signature verification. Native drawing, settings, lifecycle, and retained-vie
 memory checks passed on arm64 with macOS 27.0.1 (26A434) and Xcode 27.0. The disk
 image was submitted to Apple; it still reported **In Progress** on 2026-10-18.
 That build predates the current word and dense-theme updates. Build 15 is the
-current signed release candidate and requires its own notarization. Stapling and
-final downloaded installation checks are pending. Nothing has been published as
+current signed release candidate; its separate disk image was submitted on
+2026-10-18 and also reports **In Progress**. Exact submitted images, checksums,
+and receipts are preserved locally so each approval can be matched to its build.
+Stapling and final downloaded installation checks are pending. Nothing has been published as
 a GitHub Release.
 
 Local builds are ad-hoc signed by default. They are suitable for development,
