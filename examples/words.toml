@@ -1,7 +1,5 @@
-# One optional word or phrase per line. Empty text disables phrases.
+# Entries appear in order, then repeat at randomly chosen rain positions.
+# Also accepts words = "FREE, YOUR, MIND" or one phrase per line in a text value.
 theme = "matrix"
 word_frequency = "frequent"
-words = """
-anything
-wake up
-"""
+words = ["FREE", "YOUR", "MIND"]

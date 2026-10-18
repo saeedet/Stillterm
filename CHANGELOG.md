@@ -8,6 +8,10 @@ has been published.
 
 ### Changed
 
+- Words accept commas, line breaks, or a TOML string array. Entries appear one at
+  a time in input order, loop after the last entry, and use randomly chosen rain
+  positions. Existing vertical reveal, glow, fade, and frequency controls remain.
+
 - Removed the experimental 3D mode and GPU dependencies. Saved Mac 3D preferences
   now use Dense Matrix while preserving words and other settings.
 
@@ -24,7 +28,7 @@ has been published.
 
 - Optional words and phrases appear vertically within rain streams, with Rare,
   Occasional, and Frequent settings. Configure them in native Mac/Windows settings
-  or terminal TOML/flags; existing preferences keep words disabled. Mac build 11 is
+  or terminal TOML/flags; existing preferences keep words disabled. Mac build 15 is
   available for local evaluation; manual Windows feature testing is pending.
 
 - Deterministic rain animation with Monochrome and Matrix themes, configurable

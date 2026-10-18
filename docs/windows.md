@@ -59,8 +59,11 @@ preview never falls back to full screen. Keyboard and mouse input dismiss full
 screen, but do not dismiss the embedded preview. Windows owns authentication.
 
 Settings include theme, speed, density, brightness, FPS, character size, seed,
-custom characters, and optional words/phrases. Enter one phrase per line in
-**Words** and choose **Word frequency**. Empty text disables phrases. Up to 16
+custom characters, and optional words/phrases. In **Words**, separate phrases with
+commas or line breaks and choose **Word frequency**. `FREE, YOUR, MIND` appears in
+that order, one phrase at a time at randomly chosen positions, then repeats.
+Blank entries are ignored; empty text disables phrases. The per-user TOML file
+also accepts `words = ["FREE", "YOUR", "MIND"]`. Up to 16
 phrases of 64 printable, single-column characters are supported. Letters stay fixed
 vertically: the passing head reveals them one by one, holding them bright until the
 word is complete, then they fade from top to bottom. Phrases taller than the view

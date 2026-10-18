@@ -44,8 +44,10 @@ and an optional character set. Changing themes resets the visual fields to that
 theme's preset. Blank characters use the preset; custom characters follow the
 CLI's single-column validation. Monochrome is the default.
 
-The panel includes **Words / phrases**, one per line, and a **Word frequency** selector.
-Empty text disables phrases. Up to 16 phrases of 64 printable, single-column
+The panel includes **Words / phrases** and a **Word frequency** selector.
+Separate entries with commas or line breaks: `FREE, YOUR, MIND` shows those three
+words in order, one at a time, then repeats at randomly chosen rain positions.
+Blank entries are ignored; empty text disables phrases. Up to 16 phrases of 64 printable, single-column
 characters are supported. Theme changes keep your phrases and frequency.
 Letters stay fixed vertically in their column. The passing stream head
 reveals them one by one, holding each bright until the entire word is lit. Then
@@ -54,6 +56,17 @@ actual timing also depends on rain speed and density. Phrases taller than the
 preview are skipped; try full-screen preview or a shorter word. Save applies the
 change; Cancel preserves the previous settings.
 The text stays in local preferences.
+
+Local build 15 removes the experimental 3D mode. Saved 3D preferences load as
+Dense Matrix while retaining personal words and other settings. To try the ordered
+list without changing saved preferences, build and run the native checks, then use:
+
+```sh
+"target/macos/Stillterm Preview.app/Contents/MacOS/preview-host" \
+  target/macos/Stillterm.saver --sequence
+```
+
+This temporary demo shows `FREE,YOUR` followed by a new line and `MIND`, at Frequent.
 
 Build 11 gives **Dense Matrix** three overlapping depth layers. Small, slower,
 softer characters sit behind larger, brighter streams and glowing heads. Trails

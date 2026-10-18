@@ -121,16 +121,22 @@ Dense rendering costs more than the sparse presets; see [local measurements](doc
 
 ## Words in the rain
 
-Open the native screensaver's **Options/Settings**, enter one word or phrase per
-line in **Words / phrases** (Windows: **Words**), and choose Rare, Occasional, or
-Frequent. Leave the field empty to disable it. All themes support phrases.
+Open the native screensaver's **Options/Settings** and enter words in
+**Words / phrases** (Windows: **Words**), separated by commas or line breaks.
+For example, `FREE, YOUR, MIND` shows **FREE → YOUR → MIND**, then repeats.
+Each phrase appears one at a time at a randomly chosen rain position. Choose
+Rare, Occasional, or Frequent; leave the field empty to disable it. All themes
+support phrases.
 
 In a terminal, including the Linux adapter:
 
 ```sh
-stillterm --theme matrix --words 'anything' --word-frequency frequent
+stillterm --theme matrix --words 'FREE,YOUR,MIND' --word-frequency frequent
 stillterm --config examples/words.toml
 ```
+
+TOML files also accept an array: `words = ["FREE", "YOUR", "MIND"]`.
+Blank entries are ignored; phrases keep their input order, including repeats.
 
 Words stay fixed vertically in a column. As the falling head passes each letter,
 it lights up and stays bright: `F`, `FR`, `FRE`, then `FREE`. After the final letter
@@ -166,7 +172,7 @@ changing a CLI file does not change either native screensaver.
 | `intensity` | `0.7` | 0.0–1.0 |
 | `characters` | `"0123456789.:+*"` | 1–256 printable, single-column characters |
 | `seed` | `42` | Unsigned 64-bit integer |
-| `words` | `""` | One optional phrase per line; blank disables; up to 16 × 64 characters |
+| `words` | `""` | Ordered text separated by commas/line breaks, or a string array; up to 16 × 64 characters |
 | `word_frequency` | `"occasional"` | `rare`, `occasional`, `frequent` |
 
 See [the example configuration](examples/config.toml) or `stillterm --help`.
