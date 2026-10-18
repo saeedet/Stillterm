@@ -120,6 +120,17 @@ measurement limits above apply; these short samples are not a controlled
 performance comparison. The native check also verifies visible code at the back
 wall, ongoing animation, resize, sleep/wake, cleanup, and fallback.
 
+### Denser room (local build 14)
+
+Build 14 uses two independently seeded layers per surface, tighter character
+spacing, and a more distant back wall. Ten 192×64 sheets upload 480 KiB per frame.
+A five-second sample on the same Apple M3 at 1870×1108 GPU pixels measured 19.7%
+of one CPU core, 30.2 presentation calls/second, 178.4 MiB physical footprint,
+and 100.9 MiB peak RSS. After six warm start/stop cycles, footprint settled at
+142.4 MiB with no measured growth from the warm baseline. The measurement limits
+above apply. Native GPU animation, back-wall visibility, resize, sleep/wake,
+cleanup, and fallback checks passed.
+
 ## Reproduce
 
 ```sh

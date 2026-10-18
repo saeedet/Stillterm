@@ -78,10 +78,11 @@ host process take effect when that screensaver instance restarts.
 
 ## Experimental 3D corridor
 
-Build 13 includes **Matrix 3D (experimental)** in Options. It renders a procedural
+Build 14 includes **Matrix 3D (experimental)** in Options. It renders a procedural
 room using Rust/wgpu and a WGSL shader, presented through a native CAMetalLayer.
-Five independently seeded rain sheets cover the side walls, floor, ceiling, and
-back wall. The viewpoint and room stay fixed while the code animates. Perspective,
+Two independently seeded rain layers cover each of the side walls, floor, ceiling,
+and back wall. Tighter character spacing and a finer, dimmer background layer fill
+the surfaces; the back wall sits farther away for a deeper room. The viewpoint and room stay fixed while the code animates. Perspective,
 distance fog, and a small glow kernel provide depth. Custom glyphs are rasterized
 into an atlas using Core Text; words reveal on the side and back walls with the
 shared engine's progressive timing.
