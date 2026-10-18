@@ -6,17 +6,12 @@ has been published.
 
 ## Unreleased
 
-### Added
+### Changed
 
-- Experimental Mac **Matrix 3D** mode with a stationary GPU room, animated
-  code in two layers on each of five surfaces, distance fading, glow, custom
-  glyphs, and words on walls.
-  The room has a floor, ceiling, side walls, and a finite back wall.
-  Rust/wgpu renders through Metal using an original WGSL shader. The existing
-  terminal and Windows modes retain their current renderers.
-- Headless shader/scene checks and native GPU animation, snapshot, fallback,
-  resize, sleep/wake, and repeated-cleanup checks. GPU checks report a skip on
-  hosts without Metal; local windowed tests passed on Apple M3.
+- Removed the experimental 3D mode and GPU dependencies. Saved Mac 3D preferences
+  now use Dense Matrix while preserving words and other settings.
+
+### Added
 
 - macOS Dense Matrix now composites three independent grids at different sizes,
   speeds, and brightness levels, with softer distant rain and subtle near-head
@@ -29,7 +24,7 @@ has been published.
 
 - Optional words and phrases appear vertically within rain streams, with Rare,
   Occasional, and Frequent settings. Configure them in native Mac/Windows settings
-  or terminal TOML/flags; existing preferences keep words disabled. Mac build 14 is
+  or terminal TOML/flags; existing preferences keep words disabled. Mac build 11 is
   available for local evaluation; manual Windows feature testing is pending.
 
 - Deterministic rain animation with Monochrome and Matrix themes, configurable
@@ -67,9 +62,6 @@ has been published.
   response shapes, and clean up remaining windows.
 
 ### Validation limits
-
-- The 3D prototype still needs installed full-screen, idle activation, other GPU
-  hardware, long-session, and energy testing. Its current native host is Mac-only.
 
 - Windows 10 and 11 manual checks passed; exact builds/display setups were not
   recorded. macOS installed checks passed on Apple M3 / macOS 14.6.1.

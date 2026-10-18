@@ -44,9 +44,8 @@ scripts/build-macos.sh
 scripts/check-macos.sh --preview
 ```
 
-Open `target/macos/Stillterm.saver` to install. It includes native options and an
-experimental GPU corridor mode. Earlier installed-screensaver testing passed on
-Apple M3 with macOS
+Open `target/macos/Stillterm.saver` to install. It includes three themes and a native
+options panel. Local installed-screensaver testing passed on Apple M3 with macOS
 14.6.1, including theme switching, multiple displays, sleep/wake, and cleanup after
 dismissal. Build 5 passes a retained-view memory regression check; after three
 installed previews, the idle helper measured 117 MiB and 0% CPU. Longer-session
@@ -119,18 +118,6 @@ Native theme selection sets the base character size to `10`; adjust it after
 selecting the preset.
 In a terminal, use the terminal's font settings to fit more columns and rows.
 Dense rendering costs more than the sparse presets; see [local measurements](docs/performance.md).
-
-## Experimental 3D corridor (macOS)
-
-Mac build 14 includes **Matrix 3D (experimental)** in the native **Options → Theme**
-menu. A stationary viewpoint looks into a room with side walls, a floor, a ceiling,
-and a distant back wall. Each surface combines tightly spaced rain with a finer,
-dimmer background layer, distance fading, and glow. Custom characters and words are supported; words appear on the walls.
-
-The prototype uses Rust, wgpu, WGSL shaders, and a small native Metal view. A Metal
-GPU is required; an unavailable renderer falls back to Dense Matrix. Windowed
-preview is tested locally; installed full-screen, long-session, and energy checks
-remain pending. This mode is currently Mac-only. See [testing instructions](docs/macos.md#experimental-3d-corridor).
 
 ## Words in the rain
 

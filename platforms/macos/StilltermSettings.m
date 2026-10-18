@@ -29,6 +29,7 @@
                 _options = (StOptions){[saved[@"theme"] unsignedIntValue], [saved[@"seed"] unsignedLongLongValue],
                     [saved[@"speed"] doubleValue], [saved[@"density"] doubleValue], [saved[@"intensity"] doubleValue],
                     saved[@"wordFrequency"] ? [saved[@"wordFrequency"] unsignedIntValue] : 1};
+                if (_options.theme == 3) _options.theme = 2; // Retired prototype -> Dense Matrix.
                 _fps = [saved[@"fps"] integerValue];
                 _fontSize = [saved[@"fontSize"] doubleValue];
                 _characters = [saved[@"characters"] copy];
@@ -83,7 +84,7 @@
         NSTextField *label = [NSTextField labelWithString:@"Theme"];
         label.frame = NSMakeRect(24, 596, 115, 24); [content addSubview:label];
         _theme = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(145, 594, 265, 28) pullsDown:NO];
-        [_theme addItemsWithTitles:@[@"Monochrome", @"Matrix", @"Dense Matrix", @"Matrix 3D (experimental)"]];
+        [_theme addItemsWithTitles:@[@"Monochrome", @"Matrix", @"Dense Matrix"]];
         [_theme selectItemAtIndex:settings.options.theme];
         _theme.target = self; _theme.action = @selector(themeChanged:);
         _theme.accessibilityLabel = @"Theme";

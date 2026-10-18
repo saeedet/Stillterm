@@ -76,16 +76,6 @@ check script opens an interactive preview with the real options panel. See
 and native lifecycle/presentation in `platforms/macos`; document every unsafe bridge
 contract. Update both the Rust C layouts and header together.
 
-## GPU prototype work
-
-`crates/gpu` owns the corridor scene and WGSL shader. Keep deterministic rain in
-Rust and presentation in the native adapter. The shader is parsed and validated
-by Naga in ordinary workspace tests; those tests do not require a GPU. The current
-presentation backend is macOS Metal. `scripts/check-macos.sh` exercises a real GPU
-when available and reports a skip otherwise, checking fallback in either case.
-A skipped GPU check does not establish rendering compatibility. Preserve the
-existing rain presets and the project's Rust 1.88 minimum when updating dependencies.
-
 ## Native Windows work
 
 On Windows with Rust's MSVC target and Microsoft C++ build tools, run:

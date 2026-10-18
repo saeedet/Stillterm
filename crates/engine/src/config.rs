@@ -23,7 +23,6 @@ pub struct EffectConfig {
     pub(crate) glyphs: Vec<Glyph>,
     pub(crate) words: WordConfig,
     pub(crate) dense_trails: bool,
-    pub(crate) vertical_fade: bool,
 }
 
 impl EffectConfig {
@@ -65,19 +64,11 @@ impl EffectConfig {
             glyphs,
             words: WordConfig::default(),
             dense_trails: false,
-            vertical_fade: false,
         })
     }
     /// Apply a theme's trail style while preserving numeric and glyph overrides.
     pub fn with_theme_style(mut self, theme: crate::Theme) -> Self {
         self.dense_trails = theme == crate::Theme::DenseMatrix;
-        self.vertical_fade = self.dense_trails;
-        self
-    }
-    /// Enable or disable the dense preset's screen-space vertical fade. Surface
-    /// textures in a 3D scene use distance fog instead of screen-space fading.
-    pub fn with_vertical_fade(mut self, enabled: bool) -> Self {
-        self.vertical_fade = enabled;
         self
     }
     /// Add up to 16 optional phrases, one per line, each at most 64 printable

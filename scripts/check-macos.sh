@@ -23,18 +23,17 @@ if [[ "$mode" == --preview ]]; then exec "$app/Contents/MacOS/preview-host" "$bu
 host="$(rustc -vV | sed -n 's/^host: //p')"
 xcrun clang -fobjc-arc -fmodules -Wall -Wextra -Werror -O2 -mmacosx-version-min=11.0 \
   platforms/macos/SettingsTests.m platforms/macos/StilltermSettings.m \
-  "target/$host/release/libstillterm_macos_bridge.a" -framework Cocoa -framework ScreenSaver -framework Security -framework Metal -framework QuartzCore -framework IOKit -liconv \
+  "target/$host/release/libstillterm_macos_bridge.a" -framework Cocoa -framework ScreenSaver -framework Security -liconv \
   -o "$out/settings-tests"
 "$out/settings-tests"
 xcrun clang -fobjc-arc -fmodules -Wall -Wextra -Werror -O2 -mmacosx-version-min=11.0 \
   platforms/macos/PreferenceProcessTests.m platforms/macos/StilltermSettings.m \
   "target/$host/release/libstillterm_macos_bridge.a" \
-  -framework Cocoa -framework ScreenSaver -framework Security -framework Metal -framework QuartzCore -framework IOKit -liconv \
+  -framework Cocoa -framework ScreenSaver -framework Security -liconv \
   -o "$out/preference-process-tests"
 "$out/preference-process-tests"
 "$app/Contents/MacOS/preview-host" "$bundle" --check "$out/preview.png"
 "$app/Contents/MacOS/preview-host" "$bundle" --measure-dense "$out/dense-preview.png"
-"$app/Contents/MacOS/preview-host" "$bundle" --check-corridor "$out/corridor-preview.png"
 xcrun clang -fobjc-arc -fmodules -Wall -Wextra -Werror -O2 -mmacosx-version-min=11.0 \
   platforms/macos/MemoryHost.m -framework Cocoa -framework ScreenSaver -framework QuartzCore -o "$out/memory-host"
 "$out/memory-host" "$bundle"

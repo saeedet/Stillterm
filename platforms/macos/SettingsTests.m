@@ -19,6 +19,12 @@ int main(void) {
         require(loaded.options.theme == 1 && loaded.options.seed == UINT64_MAX && loaded.fps == 60 &&
             loaded.fontSize == 24 && [loaded.characters isEqual:@"ｱ01"], "settings round trip, including u64 seed");
         require([loaded.words isEqual:@"anything\nwake up"] && loaded.options.word_frequency == 2, "phrases and frequency round trip");
+        NSMutableDictionary *retired = [[defaults dictionaryForKey:@"SettingsV1"] mutableCopy];
+        retired[@"theme"] = @3; [defaults setObject:retired forKey:@"SettingsV1"];
+        StilltermSettings *migrated = [[StilltermSettings alloc] initWithDefaults:defaults];
+        require(migrated.options.theme == 2 && [migrated.words isEqual:loaded.words] &&
+            migrated.options.seed == loaded.options.seed, "retired theme keeps words and settings in Dense Matrix");
+        [settings save];
         loaded.words = @"界"; require(!loaded.isValid, "wide phrase characters rejected");
         loaded.words = @"anything";
         loaded.characters = @"界";
@@ -73,11 +79,6 @@ int main(void) {
         loaded = [[StilltermSettings alloc] initWithDefaults:defaults];
         require(loaded.options.theme == 2 && loaded.fontSize == 10 && [loaded.words isEqual:@"anything\nwake up"] &&
             loaded.options.word_frequency == 2, "dense theme round trip preserves words");
-        [theme selectItemAtIndex:3]; [NSApp sendAction:theme.action to:theme.target from:theme];
-        [save performClick:nil];
-        loaded = [[StilltermSettings alloc] initWithDefaults:defaults];
-        require(loaded.options.theme == 3 && loaded.fontSize == 18 && [loaded.words isEqual:@"anything\nwake up"],
-            "experimental 3D mode persists and preserves words");
         [theme selectItemAtIndex:1]; [NSApp sendAction:theme.action to:theme.target from:theme];
         require([[(NSTextField *)fields[@"Character size"] stringValue] isEqual:@"18"], "leaving dense restores regular character size");
         __block BOOL canceled = NO;
