@@ -1,7 +1,7 @@
 //! GPU ownership and presentation. The native caller owns the CAMetalLayer.
 use crate::{
     CORRIDOR_SHADER,
-    scene::{COLUMNS, FACES, ROWS, Scene},
+    scene::{COLUMNS, ROWS, SHEETS, Scene},
 };
 use std::{ffi::c_void, time::Duration};
 use stillterm_engine::EffectConfig;
@@ -129,7 +129,7 @@ impl Renderer {
             size: wgpu::Extent3d {
                 width: COLUMNS,
                 height: ROWS,
-                depth_or_array_layers: FACES,
+                depth_or_array_layers: SHEETS,
             },
             mip_level_count: 1,
             sample_count: 1,

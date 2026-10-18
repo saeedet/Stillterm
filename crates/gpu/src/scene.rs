@@ -1,10 +1,11 @@
-//! Five animated rain sheets, sampled on corridor surfaces by the shader.
+//! Two independently animated rain layers on each of five room surfaces.
 use std::{collections::HashMap, time::Duration};
 use stillterm_engine::{EffectConfig, Engine, GridSize, StepClock, WordFrequency};
 
 pub const COLUMNS: u32 = 192;
 pub const ROWS: u32 = 64;
 pub const FACES: u32 = 5;
+pub const SHEETS: u32 = FACES * 2;
 pub const MAX_GLYPHS: usize = 1280;
 
 /// Stable atlas order, including word letters missing from the rain alphabet.
@@ -31,25 +32,19 @@ pub struct Scene {
 impl Scene {
     pub fn new(config: EffectConfig, atlas: &[char], seed: u64) -> Self {
         let size = GridSize::new(COLUMNS as u16, ROWS as u16).expect("bounded sheet");
-        let sheets = [
-            0,
-            0x9e3779b97f4a7c15,
-            0x6a09e667f3bcc909,
-            0xbb67ae8584caa73b,
-            0x3c6ef372fe94f82b,
-        ]
-        .into_iter()
-        .enumerate()
-        .map(|(face, salt)| {
-            let mut config = config.clone().with_vertical_fade(false);
-            if face == 2 || face == 3 {
-                config = config
-                    .with_words("", WordFrequency::Occasional)
-                    .expect("empty words");
-            }
-            Engine::rain(size, config, seed ^ salt)
-        })
-        .collect();
+        let sheets = (0..SHEETS)
+            .map(|sheet| {
+                let face = sheet % FACES;
+                let salt = u64::from(sheet).wrapping_mul(0x9e3779b97f4a7c15);
+                let mut config = config.clone().with_vertical_fade(false);
+                if sheet >= FACES || face == 2 || face == 3 {
+                    config = config
+                        .with_words("", WordFrequency::Occasional)
+                        .expect("empty words");
+                }
+                Engine::rain(size, config, seed ^ salt)
+            })
+            .collect();
         Self {
             sheets,
             glyphs: atlas
@@ -58,7 +53,7 @@ impl Scene {
                 .map(|(i, c)| (*c, i as u16))
                 .collect(),
             clock: StepClock::default(),
-            pixels: vec![0; (COLUMNS * ROWS * FACES * 4) as usize],
+            pixels: vec![0; (COLUMNS * ROWS * SHEETS * 4) as usize],
         }
     }
     pub fn advance(&mut self, elapsed: Duration) {
@@ -75,7 +70,7 @@ impl Scene {
         for sheet in &mut self.sheets {
             for (pixel, cell) in destination
                 .next()
-                .expect("five sheets")
+                .expect("one buffer per rain sheet")
                 .chunks_exact_mut(4)
                 .zip(sheet.frame().cells())
             {
@@ -119,7 +114,7 @@ mod tests {
         assert_ne!(initial, a.pixels());
         let pixels = a.pixels();
         let face = (COLUMNS * ROWS * 4) as usize;
-        assert_eq!(pixels.len(), face * 5);
+        assert_eq!(pixels.len(), face * SHEETS as usize);
         let sheets: Vec<_> = pixels.chunks_exact(face).collect();
         for (i, sheet) in sheets.iter().enumerate() {
             assert!(sheet.chunks_exact(4).any(|pixel| pixel[2] > 0));
