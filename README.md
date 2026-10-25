@@ -13,8 +13,9 @@ service or browser runtime.
 terminal. An animation recording is planned for the first release.*
 
 **Status:** In development; source installation is available now. The Mac build
-is Developer ID signed, with Apple notarization pending. Public binary releases
-are not available yet; Windows builds remain unsigned. The Hyprland adapter is
+is Developer ID signed, Apple notarized, and stapled. Its first prerelease is
+prepared; a final clean-Mac installation test is pending before the download goes
+public. Windows builds remain unsigned. The Hyprland adapter is
 experimental. Stillterm provides animation; your operating system controls locking.
 
 ## Install
@@ -31,7 +32,7 @@ cargo install --path crates/terminal --locked
 This installs `stillterm` into Cargo's binary directory. Ensure that directory is
 on your `PATH`. Uninstall with `cargo uninstall stillterm`.
 
-Signed prebuilt downloads are not available yet. There is no
+The signed Mac download is prepared but is not public yet. There is no
 published crates.io package at this stage; use the source installation above.
 
 ## macOS screensaver
@@ -188,7 +189,7 @@ the monochrome theme otherwise uses a detected grayscale or basic-color palette.
 | macOS terminal | Tested locally on Apple Silicon, including PTY lifecycle checks |
 | Windows terminal | Cross-checked for compilation; native CI configured; interactive testing pending |
 | Linux terminal | Cross-checked for compilation; native CI and PTY checks configured |
-| macOS `.saver` | Build 15 checked locally on Apple M3; earlier installed checks on macOS 14.6.1; notarized download pending |
+| macOS `.saver` | Build 15 checked locally on Apple M3; earlier installed checks on macOS 14.6.1; notarized build 15; final installation check and public download pending |
 | Windows `.scr` | Baseline tested on Windows 10/11; latest phrase/dense additions await manual testing; unsigned |
 | Hyprland / Hypridle | Experimental adapter; automated lifecycle tests; desktop acceptance pending |
 | Omarchy 4.0.4 | Manual preview path; automatic idle replacement unsupported |
@@ -212,6 +213,12 @@ see [measurements and reproduction steps](docs/performance.md).
 
 For the boundaries and determinism contract, read [architecture](docs/architecture.md).
 To extend the engine, read [adding an effect](docs/adding-an-effect.md).
+
+## Website
+
+A lightweight product page with an interactive browser rain preview lives in
+[website/](website/README.md). The Mac download remains marked as pending until
+the final installation check and prerelease publication are complete.
 
 ## Contribute
 

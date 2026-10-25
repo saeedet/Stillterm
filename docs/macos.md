@@ -198,16 +198,17 @@ Developer ID signing and Keychain-based notarization credentials are configured
 for the first macOS prerelease. Source builds and contributions do not require a
 paid account.
 
-On 2026-10-17, the universal 0.1.0 / build 5 bundle and disk image passed Developer
-ID signature verification. Native drawing, settings, lifecycle, and retained-view
-memory checks passed on arm64 with macOS 27.0.1 (26A434) and Xcode 27.0. The disk
-image was submitted to Apple; it still reported **In Progress** on 2026-10-18.
-That build predates the current word and dense-theme updates. Build 15 is the
-current signed release candidate; its separate disk image was submitted on
-2026-10-18 and also reports **In Progress**. Exact submitted images, checksums,
-and receipts are preserved locally so each approval can be matched to its build.
-Stapling and final downloaded installation checks are pending. Nothing has been published as
-a GitHub Release.
+Apple accepted both submitted packages. On 2026-10-25, the current universal
+0.1.0 / build 15 image was copied from its exact accepted submission, stapled,
+and verified. Gatekeeper reports **accepted — Notarized Developer ID**. The image
+uploaded to the draft GitHub prerelease was downloaded again; its SHA-256 matched,
+and its bundle passed signature, native drawing, phrase, and lifecycle checks.
+The original submitted image remains preserved separately.
+
+The first Mac prerelease, **v0.1.0-beta.1**, is prepared as a draft with the verified
+disk image, checksum, and installation guide. A clean-Mac installation check is
+still pending, so the download is not public yet. Windows binaries are held for
+manual testing of the latest additions. See the [release checklist](releases/v0.1.0-beta.1.md).
 
 Local builds are ad-hoc signed by default. They are suitable for development,
 not a substitute for Developer ID signing and notarization. Do not remove quarantine or disable

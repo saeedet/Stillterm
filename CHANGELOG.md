@@ -17,6 +17,10 @@ has been published.
 
 ### Added
 
+- A responsive website with an interactive browser rain interpretation, theme
+  selection, editable ordered phrases, and platform setup instructions. Source is
+  in `website/`; the download stays gated until prerelease validation is complete.
+
 - macOS Dense Matrix now composites three independent grids at different sizes,
   speeds, and brightness levels, with softer distant rain and subtle near-head
   glow. Words remain in the near layer. One shared canvas and a bounded background
@@ -41,7 +45,8 @@ has been published.
   dismissal, scoped cleanup, and optional standalone Hypridle setup.
 - Automated platform checks and temporary CI development artifacts.
 - Verified Developer ID signing for the universal macOS bundle and disk image;
-  build 15 has been submitted separately to Apple for notarization.
+  Apple accepted build 15. Its stapled download passed Gatekeeper and
+  downloaded-artifact checks; the Mac prerelease is drafted for final installation testing.
 
 ### Fixed
 
