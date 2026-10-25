@@ -2,7 +2,8 @@
 
 Stillterm builds a native `Stillterm.saver` with the same Rust rain engine as the
 CLI. It includes Monochrome, Matrix, and Dense Matrix themes, a small preview, and an options
-sheet. This is a source-build preview, not a signed public release.
+sheet. A signed, notarized Mac prerelease is available on GitHub Releases; the
+commands below also support local source builds.
 
 ## Build and try
 
@@ -79,9 +80,9 @@ renderer batches glyphs by font and color, retaining clipping for unusual fallba
 characters. All three grids share one canvas; the two distant layers share a
 bounded bitmap refreshed at up to 15 FPS. See [performance measurements](performance.md).
 
-The current build is for local evaluation. The disk image submitted for
-notarization on 2026-10-17 is the preserved build 5, without phrases; the current build needs
-its own submission before public distribution.
+Build 15 is the first public Mac prerelease. Its separate notarization submission
+was accepted, and the download includes the approval ticket. The original build 5
+submission is preserved for reference.
 
 Preferences use Apple's `ScreenSaverDefaults`, under
 `io.github.saeedet.Stillterm`, independently of CLI TOML files. Each native view
@@ -170,8 +171,8 @@ Remaining release validation:
 - Physical Intel hardware and additional named macOS versions.
 - Broader display configurations, scaling, and display connection changes.
 - Sustained CPU/memory at full resolution over longer sessions.
-- Download, Gatekeeper, install, upgrade, and uninstall on a clean Mac using the
-  final signed and notarized package.
+- Broader clean-Mac upgrade/uninstall checks. A user-reported fresh-Mac install,
+  Preview, Dense Matrix, and phrase test passed for the final build 15 package.
 
 Standalone host checks do not replace these installed-system checks. Apple documents
 that callbacks can arrive after `stopAnimation`; Stillterm explicitly ignores them,
@@ -205,16 +206,18 @@ uploaded to the draft GitHub prerelease was downloaded again; its SHA-256 matche
 and its bundle passed signature, native drawing, phrase, and lifecycle checks.
 The original submitted image remains preserved separately.
 
-The first Mac prerelease, **v0.1.0-beta.1**, is prepared as a draft with the verified
-disk image, checksum, and installation guide. A clean-Mac installation check is
-still pending, so the download is not public yet. Windows binaries are held for
-manual testing of the latest additions. See the [release checklist](releases/v0.1.0-beta.1.md).
+The first Mac prerelease, [v0.1.0-beta.1](https://github.com/saeedet/Stillterm/releases/tag/v0.1.0-beta.1), includes the verified disk
+image, checksum, and installation guide. A user reported successful installation,
+Preview, Dense Matrix, and ordered phrases on a fresh Mac on 2026-10-25. The Mac
+model and macOS version were not provided, so this adds no specific hardware/OS
+coverage claim. Windows binaries are held for manual testing of the latest additions.
+See the [release checklist](releases/v0.1.0-beta.1.md).
 
 Local builds are ad-hoc signed by default. They are suitable for development,
 not a substitute for Developer ID signing and notarization. Do not remove quarantine or disable
 Gatekeeper to distribute an unnotarized download.
 
-The intended download is `Stillterm.dmg` on GitHub Releases. Users can install
+Download `Stillterm.dmg` from the Mac prerelease on GitHub Releases. Users can install
 it without Rust or Xcode. Source builds remain available independently.
 
 For the signed download, a maintainer needs Apple Developer Program membership,

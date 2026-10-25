@@ -1,8 +1,7 @@
 # Changelog
 
-User-facing development changes are collected here until the first release.
-Version `0.1.0` in the source identifies development builds; no public release
-has been published.
+User-facing development changes are collected here. The first Mac prerelease is
+`v0.1.0-beta.1`; its approved bundle identifies itself as `0.1.0`, build 15.
 
 ## Unreleased
 
@@ -19,7 +18,7 @@ has been published.
 
 - A responsive website with an interactive browser rain interpretation, theme
   selection, editable ordered phrases, and platform setup instructions. Source is
-  in `website/`; the download stays gated until prerelease validation is complete.
+  in `website/`, with automatic GitHub Pages deployment and the Mac download link.
 
 - macOS Dense Matrix now composites three independent grids at different sizes,
   speeds, and brightness levels, with softer distant rain and subtle near-head
@@ -33,7 +32,7 @@ has been published.
 - Optional words and phrases appear vertically within rain streams, with Rare,
   Occasional, and Frequent settings. Configure them in native Mac/Windows settings
   or terminal TOML/flags; existing preferences keep words disabled. Mac build 15 is
-  available for local evaluation; manual Windows feature testing is pending.
+  the first Mac prerelease; manual Windows feature testing is pending.
 
 - Deterministic rain animation with Monochrome and Matrix themes, configurable
   speed, density, brightness, characters, frame rate, and seed.
@@ -46,7 +45,8 @@ has been published.
 - Automated platform checks and temporary CI development artifacts.
 - Verified Developer ID signing for the universal macOS bundle and disk image;
   Apple accepted build 15. Its stapled download passed Gatekeeper and
-  downloaded-artifact checks; the Mac prerelease is drafted for final installation testing.
+  downloaded-artifact checks; a fresh-Mac installation/preview/phrase test was
+  reported passed. The verified build is published as the first Mac prerelease.
 
 ### Fixed
 
@@ -78,7 +78,7 @@ has been published.
   physical Intel Macs, and Linux desktop acceptance still need testing.
 - Omarchy 4.0.4 has a manual preview path only; automatic idle replacement is
   unsupported. Stillterm does not implement session locking.
-- macOS notarization and final downloaded installation checks remain pending.
-  Windows signing and the first public binary release are also pending.
+- Broader Mac hardware/OS and long-session checks remain pending. Windows signing
+  and manual testing of the latest Windows features are also pending.
 
 See [platform support](docs/platform-support.md) for the detailed validation record.

@@ -10,17 +10,18 @@ service or browser runtime.
 ![A reproducible snapshot of Stillterm's rain effect](docs/media/rain.svg)
 
 *Engine snapshot: seed 42, four seconds, 96×28 cells. Font and brightness vary by
-terminal. An animation recording is planned for the first release.*
+terminal. The website includes an interactive browser interpretation.*
 
-**Status:** In development; source installation is available now. The Mac build
-is Developer ID signed, Apple notarized, and stapled. Its first prerelease is
-prepared; a final clean-Mac installation test is pending before the download goes
-public. Windows builds remain unsigned. The Hyprland adapter is
-experimental. Stillterm provides animation; your operating system controls locking.
+**Status:** The first Mac prerelease is available: Developer ID signed, Apple
+notarized, and stapled. Windows builds remain unsigned, and the Hyprland adapter
+is experimental. Stillterm provides animation; your operating system controls locking.
+
+[Download for macOS](https://github.com/saeedet/Stillterm/releases/download/v0.1.0-beta.1/Stillterm.dmg) · [Website](https://saeedet.github.io/Stillterm/) · [Release notes](https://github.com/saeedet/Stillterm/releases/tag/v0.1.0-beta.1)
 
 ## Install
 
-Requires [Rust](https://www.rust-lang.org/tools/install) 1.88 or newer and a system
+The Mac download above installs without Rust or Xcode. For the terminal app,
+source installation requires [Rust](https://www.rust-lang.org/tools/install) 1.88 or newer and a system
 linker. With rustup, this checkout selects the tested Rust 1.88.0 toolchain.
 
 ```sh
@@ -32,8 +33,8 @@ cargo install --path crates/terminal --locked
 This installs `stillterm` into Cargo's binary directory. Ensure that directory is
 on your `PATH`. Uninstall with `cargo uninstall stillterm`.
 
-The signed Mac download is prepared but is not public yet. There is no
-published crates.io package at this stage; use the source installation above.
+There is no published crates.io package at this stage; use the source installation
+above for the terminal app.
 
 ## macOS screensaver
 
@@ -49,8 +50,9 @@ Open `target/macos/Stillterm.saver` to install. The native options panel include
 all three themes, custom characters, ordered words/phrases, and animation controls.
 Build 15 passed local settings, rendering, lifecycle, and memory regression checks
 on Apple M3 / macOS 27.0.1. Earlier installed-screensaver checks passed on macOS
-14.6.1, including multiple displays and sleep/wake. Longer sessions and a clean-Mac
-installation of the final notarized download still need testing.
+14.6.1, including multiple displays and sleep/wake. A user-reported fresh-Mac test
+of the final download passed installation, Preview, Dense Matrix, and ordered
+phrases. Physical Intel hardware and longer sessions still need broader testing.
 See [macOS setup and distribution](docs/macos.md).
 
 ## Windows screensaver
@@ -189,7 +191,7 @@ the monochrome theme otherwise uses a detected grayscale or basic-color palette.
 | macOS terminal | Tested locally on Apple Silicon, including PTY lifecycle checks |
 | Windows terminal | Cross-checked for compilation; native CI configured; interactive testing pending |
 | Linux terminal | Cross-checked for compilation; native CI and PTY checks configured |
-| macOS `.saver` | Build 15 checked locally on Apple M3; earlier installed checks on macOS 14.6.1; notarized build 15; final installation check and public download pending |
+| macOS `.saver` | Build 15 checked locally on Apple M3; earlier installed checks on macOS 14.6.1; notarized build 15; fresh-Mac installation/preview reported passed; Mac prerelease available |
 | Windows `.scr` | Baseline tested on Windows 10/11; latest phrase/dense additions await manual testing; unsigned |
 | Hyprland / Hypridle | Experimental adapter; automated lifecycle tests; desktop acceptance pending |
 | Omarchy 4.0.4 | Manual preview path; automatic idle replacement unsupported |
@@ -216,9 +218,9 @@ To extend the engine, read [adding an effect](docs/adding-an-effect.md).
 
 ## Website
 
-A lightweight product page with an interactive browser rain preview lives in
-[website/](website/README.md). The Mac download remains marked as pending until
-the final installation check and prerelease publication are complete.
+Visit [the Stillterm website](https://saeedet.github.io/Stillterm/) for an interactive
+browser rain preview, downloads, and setup instructions. Its source lives in
+[website/](website/README.md); GitHub Pages deploys website changes automatically.
 
 ## Contribute
 
